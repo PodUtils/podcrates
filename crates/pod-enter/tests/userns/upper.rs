@@ -159,6 +159,7 @@ pub fn layered(root: &Path, vols: &Path) {
         guest: "/only".into(),
         read_only: false,
         host_base: None,
+        overlay: None,
     }];
     if landlock.is_ok() {
         p.confine = Some(spec().allow("/only/sub", Access::READ));

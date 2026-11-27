@@ -92,11 +92,12 @@ pub(crate) fn optional_mounts(root: &str, names: &Names) -> Vec<Optional> {
 
 /// Make each optional mount, in the child after the tmpfs on `/tmp`: no
 /// allocation. A refused one writes its line and the next one goes on.
-/// In a user namespace of the rung, `/dev/pts` is first a new devpts
-/// instance (`ns_pts`), `EPERM` calls for the fallback of the mount, and
-/// the host's devices come after (`ns_dev_bind`).
+/// Where a user namespace owns the mount namespace (the one of the rung, or
+/// one of the caller), `/dev/pts` is first a new devpts instance
+/// (`ns_pts`), `EPERM` calls for the fallback of the mount, and the host's
+/// devices come after (`ns_dev_bind`).
 pub(crate) fn mount_each(ns: &crate::entry::NsMount) {
-    let user = ns.user.is_some();
+    let user = ns.userns();
     for m in &ns.optional {
         if let Some(n) = m.devpts.as_ref().filter(|_| user)
             && n.mount(&m.target).is_ok()

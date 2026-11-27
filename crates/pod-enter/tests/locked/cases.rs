@@ -17,8 +17,8 @@ use super::probe::PROBE;
 pub const CASES: &str = "cases";
 
 const EPERM: i64 = -(k::EPERM.0 as i64);
-const EINVAL: i64 = -(k::EINVAL.0 as i64);
-const ENOENT: i64 = -(k::ENOENT.0 as i64);
+pub const EINVAL: i64 = -(k::EINVAL.0 as i64);
+pub const ENOENT: i64 = -(k::ENOENT.0 as i64);
 const EROFS: i64 = -(k::EROFS.0 as i64);
 
 /// The cases on the path of this process, then on each other path that
@@ -60,10 +60,12 @@ pub fn run_all(path: &str) -> i32 {
             return 0;
         }
     }
-    let cases: [(&str, Case); 3] = [
+    let cases: [(&str, Case); 5] = [
         ("the mounts of the rung are locked and the root holds", locked),
         ("a join lands in the namespaces of the payload and is locked", joined),
         ("a read-only root refuses a write", read_only),
+        ("an overlay volume keeps its lower layer and is locked", super::layer::overlay_volume),
+        ("a user namespace of the mounts gets the devices of the host", super::layer::devices),
     ];
     let mut failed = 0;
     for (name, case) in cases {
@@ -84,9 +86,9 @@ pub fn run_all(path: &str) -> i32 {
 
 /// The image, the host sides of a read-only and a writable volume, and a
 /// host file that the payload must not reach.
-struct Tree {
-    dir: PathBuf,
-    image: PathBuf,
+pub struct Tree {
+    pub dir: PathBuf,
+    pub image: PathBuf,
     ro: PathBuf,
     rw: PathBuf,
     marker: String,
@@ -98,7 +100,7 @@ impl Drop for Tree {
     }
 }
 
-fn tree(tag: &str) -> Tree {
+pub fn tree(tag: &str) -> Tree {
     let dir = std::env::temp_dir().join(format!("pod-enter-locked-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let image = dir.join("image");
@@ -115,12 +117,13 @@ fn tree(tag: &str) -> Tree {
     Tree { marker: marker.to_str().unwrap().to_string(), dir, image, ro, rw }
 }
 
-fn plan(t: &Tree, ops: &[String], pid: bool, read_only_root: bool) -> Plan {
+pub fn plan(t: &Tree, ops: &[String], pid: bool, read_only_root: bool) -> Plan {
     let volume = |host: &PathBuf, guest: &str, read_only| VolumeBind {
         host: host.to_str().unwrap().to_string(),
         guest: guest.to_string(),
         read_only,
         host_base: None,
+        overlay: None,
     };
     let bytes = NonZeroU64::new(1 << 20).unwrap();
     Plan {
@@ -146,7 +149,7 @@ fn plan(t: &Tree, ops: &[String], pid: bool, read_only_root: bool) -> Plan {
 }
 
 /// A payload that runs: its line and the write end of its standard input.
-struct Running {
+pub struct Running {
     child: Child,
     results: HashMap<String, i64>,
     hold: i64,
@@ -154,7 +157,7 @@ struct Running {
 
 impl Running {
     /// Let the payload end, and give its exit code.
-    fn end(self) -> Result<i32, String> {
+    pub fn end(self) -> Result<i32, String> {
         let _ = k::close(self.hold);
         self.child.wait().map_err(|e| e.to_string())
     }
@@ -171,7 +174,7 @@ fn pipe() -> (i64, i64) {
 }
 
 /// Start the payload of `plan` with `spawn`, and read its line.
-fn start(plan: &mut Plan, spawn: impl FnOnce(&Plan) -> pod_enter::Result<Child>) -> Result<Running, String> {
+pub fn start(plan: &mut Plan, spawn: impl FnOnce(&Plan) -> pod_enter::Result<Child>) -> Result<Running, String> {
     let (hold_r, hold) = pipe();
     let (out, out_w) = pipe();
     plan.fds.pass = vec![(0, hold_r), (1, out_w)];
@@ -203,7 +206,7 @@ fn start(plan: &mut Plan, spawn: impl FnOnce(&Plan) -> pod_enter::Result<Child>)
 }
 
 /// The result of each operation, against the wanted one.
-fn expect(r: &Running, want: &[(&str, i64)]) -> Result<(), String> {
+pub fn expect(r: &Running, want: &[(&str, i64)]) -> Result<(), String> {
     let wrong: Vec<String> = want
         .iter()
         .filter_map(|(op, w)| match r.get(op) {

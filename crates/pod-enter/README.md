@@ -88,8 +88,11 @@ The entries:
   and never a fallback to chroot as 0. A host root (the initial
   namespace), a join of a run (the map of the run holds) and the entry
   with no chroot keep the ids of the caller (T-791).
-* The device nodes of the host on the namespace rung through a user
-  namespace (`ns_dev_bind`, PodUtils/podvm#414). The kernel refuses
+* The device nodes of the host on the namespace rung where a user
+  namespace owns the mount namespace (`ns_dev_bind`, PodUtils/podvm#414):
+  the user namespace of the rung, or one of the caller (podvm's launcher
+  and foreground run, PodUtils/podvm#689, call C1004; there the new devpts
+  instance and the bind of the host's `/proc` apply too). The kernel refuses
   `mknod` there, so the image holds regular files at the paths of
   `DEVICES` (a `/dev/urandom` that ends after 1 MiB). Before the fork,
   the entry reads the kind of `/dev/null`, `/dev/zero`, `/dev/full`,
@@ -130,7 +133,8 @@ The entries:
   takes one line and no bind. The rung as root keeps the bind of the
   host's `/dev/pts`.
 * The volumes of a plan on the namespace rung (`Plan::volumes`, a
-  `Vec<VolumeBind { host, guest, read_only }>`, PodUtils/podvm#440), as
+  `Vec<VolumeBind { host, guest, read_only, host_base, overlay }>`,
+  PodUtils/podvm#440), as
   root and through a user namespace, in their order. Before the banner
   and the fork, the entry refuses by name a guest path that is not an
   absolute normal path (`volume_guest_parts`: no `.`, `..` or empty
@@ -168,6 +172,25 @@ The entries:
   resolves in the host side of the volume before the fork
   (`userland::Maps::of_binds`, which a caller gives to `check_workdir`),
   and so does the path of each rule of the confinement.
+* An overlay volume (`VolumeBind::overlay: Some(OverlayLayers { upper,
+  work })`, `-v HOST:GUEST:overlay`, PodUtils/podvm#689, call C1003): at
+  the place of the bind, an overlayfs mount on the guest path whose
+  read-only lower layer is the directory HOST (opened under `host_base`
+  with `pod-beneath` where it is set), with the upper and the work
+  directory that the caller made. The child does `fchdir` to the lower
+  descriptor and mounts with `overlay_options` (`lowerdir=.`), and with
+  `userxattr` where a user namespace owns the mount namespace, with no
+  second try. Before the fork the entry refuses by name a `read_only`
+  overlay, a host path that is not a directory, an upper or a work
+  directory that is not an absolute path of a directory, and options over
+  one page. Steps: `NS_LAYER_LOWER_STEP` 61 (the open of the lower layer,
+  or step 48 under its base), `NS_LAYER_MOUNT_STEP` 62, and
+  `NS_LAYER_OVERLAP_STEP` 63 for `ELOOP` and `EBUSY` (layers that overlap or
+  are in use, `Class::Usage`). The label is `HOST:GUEST:overlay`. The
+  mount comes before the nested user namespace of the payload, so it is
+  locked as each other mount. The checks before the fork (the working
+  directory, the rules of the confinement) read the upper directory over
+  the host path (`ns_upper`).
 * The tmpfs mounts of a plan with a byte limit on the namespace rung
   (`Plan::tmpfs`, a `Vec<TmpfsMount { guest, bytes, mode }>`, `bytes` a
   `NonZeroU64`; podvm's `--tmpfs PATH:size=N`, PodUtils/podvm#667; `mode`

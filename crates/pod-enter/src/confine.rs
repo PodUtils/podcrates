@@ -49,7 +49,7 @@ pub(crate) fn compile(
     let Some(spec) = &plan.confine else { return Ok(None) };
     let abi = pod_confine::check()?;
     let mut compiled = match root {
-        Some(r) if !plan.volumes.is_empty() || upper.is_some() => {
+        Some(r) if !plan.volumes.is_empty() || upper.is_some_and(|u| u.path.is_some()) => {
             let view = View::new(r, plan, upper);
             spec.compile_by(abi, |path| open_through(&view, r, path))?
         }

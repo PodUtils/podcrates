@@ -131,8 +131,13 @@ pub fn a_rule_on_the_root_covers_a_volume_under_it() {
         std::fs::create_dir_all(d.join("sc")).unwrap();
         let root = root_over_the_pipes(&text(&d));
         let mut p = plan(argv.clone(), Some(spec));
-        p.volumes =
-            vec![pod_enter::VolumeBind { host: text(&src), guest: "/sc".into(), read_only: true, host_base: None }];
+        p.volumes = vec![pod_enter::VolumeBind {
+            host: text(&src),
+            guest: "/sc".into(),
+            read_only: true,
+            host_base: None,
+            overlay: None,
+        }];
         let mut banner = Vec::new();
         let r = run(&mut p, 0, |p| spawn_namespace(&root, p, &mut banner)).unwrap();
         if !banner.is_empty() {

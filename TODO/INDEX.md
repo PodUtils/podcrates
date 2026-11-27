@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1110 entries: 176 open, 31 partial, 6 blocked, 897 done.**
+**1110 entries: 174 open, 31 partial, 6 blocked, 899 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 6 | 9 | 0 | 255 | 270 |
+| P1 | 4 | 9 | 0 | 257 | 270 |
 | P2 | 73 | 12 | 4 | 481 | 570 |
 | P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 176 | 31 | 6 | 897 | 1110 |
+| **All** | 174 | 31 | 6 | 899 | 1110 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1155,5 +1155,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1601](relay.md) | P2 | S | M2 | defect | done | `pod-session`: `a_cap_of_1_mib_takes_a_smaller_window` fails on a target of 32 bits: `after_mark(usize::MAX)` does not saturate there |
 | [T-1610](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: the walk in a root refuses a `..` at the root, so podvm's `cp` cannot resolve a path as docker does (PodUtils/podvm#684) |
 | [T-1611](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: `TmpfsMount` has no mode, so podvm refuses `--tmpfs P:mode=M,size=N` (PodUtils/podvm#692, ask 2) |
-| [T-1612](podvm.md) | P1 | M | M6 | feature | open | `pod-enter`: no overlay kind of volume in `Plan::volumes`, so podvm mounts `-v HOST:GUEST:overlay` in a namespace step of its own (PodUtils/podvm#689) |
-| [T-1613](podvm.md) | P1 | S | M6 | defect | open | `pod-enter`: the namespace rung of a caller in a user namespace binds no device of the host, so the image keeps regular files at `/dev/null` (PodUtils/podvm#689, PodUtils/podvm@T-2107) |
+| [T-1612](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: no overlay kind of volume in `Plan::volumes`, so podvm mounts `-v HOST:GUEST:overlay` in a namespace step of its own (PodUtils/podvm#689) |
+| [T-1613](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the namespace rung of a caller in a user namespace binds no device of the host, so the image keeps regular files at `/dev/null` (PodUtils/podvm#689, PodUtils/podvm@T-2107) |

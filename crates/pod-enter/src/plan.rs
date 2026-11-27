@@ -121,12 +121,33 @@ pub struct Plan {
 /// makes in the source after the check of the caller cannot redirect the
 /// bind (PodUtils/podrunner#277). A link under the base is a refusal that
 /// names the volume.
+///
+/// `overlay` (`-v HOST:GUEST:overlay`, PodUtils/podvm#689): in place of the
+/// bind, an overlayfs mount on `guest` whose read-only lower layer is the
+/// directory `host` (opened under `host_base` where it is set), and whose
+/// writes go to the upper directory of [`OverlayLayers`]. The kernel writes
+/// no file of `host`: a change copies the file up, and a removal leaves a
+/// whiteout in the upper directory. `read_only` with an overlay is refused.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct VolumeBind {
     pub host: String,
     pub guest: String,
     pub read_only: bool,
     pub host_base: Option<String>,
+    pub overlay: Option<OverlayLayers>,
+}
+
+/// The layers of an overlay volume ([`VolumeBind::overlay`]): the upper
+/// directory, which takes each write, and an empty work directory on the
+/// same file system. Both are absolute host paths of directories that the
+/// caller made; neither is in the other layers. The root of the guest path
+/// takes the mode and the owner of `upper`. In a user namespace the mount
+/// has `userxattr`, so the file system of `upper` must take `user.*`
+/// attributes (Linux 5.11 or later).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct OverlayLayers {
+    pub upper: String,
+    pub work: String,
 }
 
 /// One tmpfs of the namespace rung: a file system in memory of at most
@@ -145,6 +166,7 @@ pub struct VolumeBind {
 pub struct TmpfsMount {
     pub guest: String,
     pub bytes: std::num::NonZeroU64,
+    pub mode: Option<u32>,
 }
 
 impl Plan {
@@ -166,7 +188,6 @@ impl Plan {
     /// added.
     pub fn argv_for(
         entrypoint: Option<&[String]>,
-    pub mode: Option<u32>,
         cmd: Option<&[String]>,
         caller: &[String],
         override_entrypoint: Option<&str>,

@@ -1,5 +1,6 @@
-//! The device nodes of the host on the namespace rung in a user namespace
-//! (`ns_user`, PodUtils/podvm#414).
+//! The device nodes of the host on the namespace rung where a user
+//! namespace owns the mount namespace: the one of the rung (`ns_user`,
+//! PodUtils/podvm#414), or one of the caller (PodUtils/podvm#689).
 //!
 //! In a user namespace the kernel refuses `mknod`, so an image that
 //! `pod-rootfs` completed there holds regular files at `/dev/null`,
@@ -113,8 +114,8 @@ pub(crate) struct Device {
     remount_refused: Vec<u8>,
 }
 
-/// The binds of the devices, built before the fork, used only in a user
-/// namespace of the rung.
+/// The binds of the devices, built before the fork, used only where a user
+/// namespace owns the mount namespace of the rung.
 pub(crate) struct Devices {
     /// The `/dev` of the image by path: the child opens it with
     /// `O_NOFOLLOW` after the overlay root, where there is one.
@@ -308,9 +309,10 @@ fn bind_one(dev: i64, d: &Device, empty: &CBuf) {
     }
 }
 
-/// In the child, in a user namespace of the rung, after the optional
-/// mounts: each line of a skipped path, then each bind. The `ptmx` of the
-/// devpts on `/dev/pts` goes on `/dev/ptmx`. No allocation.
+/// In the child, where a user namespace owns the mount namespace of the
+/// rung, after the optional mounts: each line of a skipped path, then each
+/// bind. The `ptmx` of the devpts on `/dev/pts` goes on `/dev/ptmx`. No
+/// allocation.
 pub(crate) fn bind_each(devices: &Devices) {
     for line in &devices.skipped {
         let _ = sys::write(2, line);

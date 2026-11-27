@@ -16664,7 +16664,7 @@ tests). podvm then drops its refusal of a mode other than 1777 with a size.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16740,6 +16740,66 @@ cargo test -p pod-enter --all-features ns_upper
 cargo test -p pod-enter --all-features --test locked
 ```
 
+## Done
+
+2026-11-27, the third commit of the branch `enter689` (subject
+`pod-enter: an overlay kind of volume, and the devices where a user
+namespace owns the mounts (T-1612, T-1613)`).
+
+- `VolumeBind::overlay: Option<OverlayLayers { upper, work }>`
+  (`crates/pod-enter/src/plan.rs`), new module
+  `crates/pod-enter/src/ns_layer.rs`. Before the fork: a `read_only`
+  overlay, a host path that is not a directory, an upper or a work
+  directory that is not an absolute path of a directory, layers that hold
+  each other (with each link resolved: the kernel takes an upper directory
+  in the host path with only a warning when `index` is off, and the writes
+  then reach the host path; a finding of this work, fixed here), and
+  options over one page are refusals that name the volume
+  (`HOST:GUEST:overlay`). In the child, at the place of the bind: the lower
+  layer opens (under `host_base` by `pod-beneath`, step 48; else step 61),
+  `fchdir` to it, then overlayfs on `/proc/self/fd/N` with `lowerdir=.` and
+  `userxattr` where a user namespace owns the mount namespace, no second
+  try (step 62; `ELOOP` and `EBUSY` are step 63). The mount comes before
+  the pivot and the nested user namespace, so it is locked. `ns_upper::View`
+  shows the upper directory of an overlay volume over its host path for the
+  working directory and the rules of the confinement. Call C1003.
+- Tests: `ns_layer::tests::an_overlay_volume_is_checked_before_the_fork`,
+  `ns_layer::tests::a_refused_overlay_volume_names_the_volume_and_the_step`,
+  `ns_upper::tests::an_overlay_volume_shows_its_upper_layer_over_its_host_path`;
+  `crates/pod-enter/tests/locked/layer.rs` (case `overlay_volume` of
+  `tests/locked.rs`, with and with no PID namespace): the payload makes
+  `/ov/made` and `/ov/sub/new`, changes `/ov/edit`, removes `/ov/gone`;
+  the host path stays byte for byte (each path, mode and byte); the upper
+  directory holds the new and the changed files and a whiteout (a character
+  device 0:0) at `gone`, and no copy of a file that the payload only read;
+  `umount2("/ov")` gives `EINVAL` (locked); a host path in the upper
+  directory is refused by name. Results on this host (Linux 6.18, root):
+  `tests/locked.rs` 30 cases passed as root (host root, uid 65534 in the
+  user namespace of the rung, uid 0 of a user namespace of one id) and 20
+  as uid 1000; `cargo test -p pod-enter -p pod-hostprobe -p pod-supervise
+  --all-features`: each passed (pod-enter lib 293, pod-hostprobe lib 200,
+  pod-supervise lib 46). Plant:
+  `scripts/plants/enter-t1612-overlay-as-bind.plant` (the volume as a
+  writable bind: "a write of the payload changed the lower layer" on each
+  path), caught here.
+- `pod_hostprobe::sys::EBUSY` is new.
+- Not measured: the kernel's own `ELOOP` and `EBUSY` of step 63 (the check
+  before the fork refuses the overlap first; unit test only); a kernel
+  before 5.11; an upper directory on a file system with no `user.*`
+  attributes.
+- Breaks of podvm (no compatibility): each `pod_enter::VolumeBind` literal
+  with no `..Default::default()` adds `overlay` (at podvm `main` `cd952a3`:
+  `PodUtils/podvm:crates/podvm-supervise/src/launcher.rs`,
+  `PodUtils/podvm:crates/podvm/src/initns/tests.rs`,
+  `PodUtils/podvm:crates/podvm-enter/src/read_only/tests.rs`); the label of
+  an overlay volume ends in `:overlay`. podvm then passes the layers as
+  `VolumeBind`s and drops `overlay::enter_own_namespace`, `prepare` and
+  `mount_all` (`PodUtils/podvm:crates/podvm-enter/src/overlay.rs`, and its
+  call in `PodUtils/podvm:crates/podvm-supervise/src/launcher.rs`) and the
+  mount in pid 2 of a foreground run. It keeps `check_guests` only where
+  it wants its own refusals: pod-enter mounts the volumes after `/tmp`,
+  `/proc` and `/dev`, so a layer there is not hidden.
+
 # T-1613: `pod-enter`: the namespace rung of a caller in a user namespace binds no device of the host, so the image keeps regular files at `/dev/null` (PodUtils/podvm#689, PodUtils/podvm@T-2107)
 
 **Source:** PodUtils/podvm#689 (COORD-264 of podvm, the part added for PodUtils/podvm@T-2107; author COLLABORATOR).
@@ -16747,7 +16807,7 @@ cargo test -p pod-enter --all-features --test locked
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16787,3 +16847,28 @@ C1004.
 ```sh
 cargo test -p pod-enter --all-features --test locked
 ```
+
+## Done
+
+2026-11-27, the third commit of the branch `enter689` (with T-1612).
+`NsMount::caller_userns` and `NsMount::userns()`
+(`crates/pod-enter/src/entry.rs`); `ns_user::spawn_own` builds the devices
+for the first try where the caller is in a user namespace;
+`ns_optional::mount_each` takes `userns()` for the new devpts instance,
+the fallback of `/proc` and the binds of the devices. Call C1004. Test of
+the fix: `crates/pod-enter/tests/locked/layer.rs` (case `devices` of
+`tests/locked.rs`): an image with regular files at `/dev/null` and
+`/dev/urandom` and a `/dev/pts` directory; where a user namespace owns the
+mounts, the payload sees character devices there and opens `/dev/ptmx`; as
+host root the files stay. On the code before the fix (the plant
+`scripts/plants/enter-t1613-no-devices-first-try.plant`, caught here) the
+path "uid 0 of a user namespace of one id" fails with `chr:/dev/null gave
+0, not 1; chr:/dev/urandom gave 0, not 1; rdwr:/dev/ptmx gave -2, not 0`.
+Results with T-1612 above. A change for podvm: its foreground run (uid 0
+of a user namespace) now gets the host's devices, a new devpts instance
+and the bind of the host's `/proc` from pod-enter, and an image with no
+`/dev` directory gets the line "binds no device of the host" there. podvm
+then drops `podvm_enter::devices`
+(`PodUtils/podvm:crates/podvm-enter/src/devices.rs`, its use in
+`PodUtils/podvm:crates/podvm-enter/src/overlay.rs`, and
+`bind_devices` of `PodUtils/podvm:crates/podvm/src/userns/host.rs`).

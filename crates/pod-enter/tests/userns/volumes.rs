@@ -64,7 +64,13 @@ fn image_of_the_volumes(root: &Path, for_nobody: bool) {
 }
 
 fn bind(host: &Path, guest: &str, read_only: bool) -> VolumeBind {
-    VolumeBind { host: host.to_str().unwrap().to_string(), guest: guest.to_string(), read_only, host_base: None }
+    VolumeBind {
+        host: host.to_str().unwrap().to_string(),
+        guest: guest.to_string(),
+        read_only,
+        host_base: None,
+        overlay: None,
+    }
 }
 
 /// The test in the process over the tmpfs: a volume that the payload reads

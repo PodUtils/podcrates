@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/ns_user.rs
++++ b/crates/pod-enter/src/ns_user.rs
+@@ -178,7 +178,7 @@
+     // namespace owns it, so the image holds no device node either
+     // (PodUtils/podvm#689).
+     mount.caller_userns = crate::ns_overlay::caller_in_user_namespace();
+-    if mount.caller_userns {
++    if false && mount.caller_userns {
+         mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names));
+     }
+     match spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), banner, err) {

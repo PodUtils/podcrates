@@ -20,6 +20,9 @@
 //! user namespace locks (`nosuid`, `nodev`, `noexec`, the atime flags) and
 //! `nosymfollow` again: the kernel refuses a remount that clears one.
 //!
+//! An overlay volume (`VolumeBind::overlay`) takes an overlayfs mount in
+//! place of the bind, at the same place in the order (`ns_layer`).
+//!
 //! A refused step stops the payload with its step byte and the index of
 //! the volume, and the parent names the volume: a payload never runs with
 //! a volume missing or writable where the plan says read-only. No fallback
@@ -67,6 +70,8 @@ pub(crate) struct Prepared {
     /// The base and the host path, where the host path opens under the
     /// base with no link (`VolumeBind::host_base`).
     beneath: Option<(Vec<u8>, Vec<u8>)>,
+    /// The overlayfs mount in place of the bind (`ns_layer`).
+    overlay: Option<crate::ns_layer::Layer>,
 }
 
 /// The volumes and the tmpfs mounts of a plan for the child, built before
@@ -80,10 +85,15 @@ pub(crate) struct Volumes {
     tmpfs: crate::ns_tmpfs::Tmpfs,
 }
 
-/// A volume as `HOST:GUEST`, with `:ro` where it is read-only, for a
-/// refusal.
+/// A volume as `HOST:GUEST`, with `:ro` where it is read-only and
+/// `:overlay` where it is an overlay, for a refusal.
 pub fn volume_label(v: &VolumeBind) -> String {
-    format!("{}:{}{}", v.host, v.guest, if v.read_only { ":ro" } else { "" })
+    let mode = match (v.read_only, v.overlay.is_some()) {
+        (_, true) => ":overlay",
+        (true, false) => ":ro",
+        (false, false) => "",
+    };
+    format!("{}:{}{mode}", v.host, v.guest)
 }
 
 /// The first volume of `plan` (`the volume HOST:GUEST`), else its first
@@ -152,6 +162,10 @@ pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Res
             errno_failure(&format!("the host path of the volume {} {what}", volume_label(v)), e)
         })?;
         let dir = st.st_mode & sys::S_IFMT == sys::S_IFDIR;
+        let overlay = match &v.overlay {
+            None => None,
+            Some(layers) => Some(crate::ns_layer::prepare(v, layers, dir).map_err(|why| usage(v, &why))?),
+        };
         let beneath = match &v.host_base {
             None => None,
             Some(base) => Some(beneath(v, base).map_err(|why| usage(v, &why))?),
@@ -181,7 +195,7 @@ pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Res
             })?;
             let _ = sys::close(fd);
         }
-        out.list.push(Prepared { host, parts: parts_c, dir, read_only: v.read_only, beneath });
+        out.list.push(Prepared { host, parts: parts_c, dir, read_only: v.read_only, beneath, overlay });
         seen.push(parts);
     }
     Ok(out)
@@ -282,9 +296,20 @@ pub(crate) fn walk(root: i64, parts: &[CBuf], dir_last: bool) -> std::result::Re
     Ok(dir)
 }
 
-/// The bind of one volume, and its remount where it is read-only.
-fn bind_one(root: i64, v: &Prepared, empty: &CBuf) -> std::result::Result<(), (u8, Errno)> {
+/// The bind of one volume, and its remount where it is read-only; or the
+/// overlayfs mount of an overlay volume. `userns`: a user namespace owns
+/// the mount namespace.
+fn bind_one(root: i64, v: &Prepared, empty: &CBuf, userns: bool) -> std::result::Result<(), (u8, Errno)> {
     let fd = point(root, v)?;
+    if let Some(layer) = &v.overlay {
+        let r = lower(v).and_then(|low| {
+            let r = crate::ns_layer::mount(layer, low, fd, userns);
+            let _ = sys::close(low);
+            r
+        });
+        let _ = sys::close(fd);
+        return r;
+    }
     let bound = match &v.beneath {
         None => mount_on_fd(&v.host, fd, sys::MS_BIND | sys::MS_REC, empty),
         // The source by its descriptor: the path can change after the open.
@@ -312,12 +337,23 @@ fn bind_one(root: i64, v: &Prepared, empty: &CBuf) -> std::result::Result<(), (u
     remounted.map(drop).map_err(|e| (NS_VOLUME_REMOUNT_STEP, e))
 }
 
+/// The lower layer of an overlay volume: a descriptor of its host path as a
+/// directory, opened under its base with no link where it has one.
+fn lower(v: &Prepared) -> std::result::Result<i64, (u8, Errno)> {
+    match &v.beneath {
+        Some((base, host)) => open_beneath(base, host).map_err(|r| (NS_VOLUME_SOURCE_STEP, Errno(r.errno()))),
+        None => sys::open(&v.host, sys::O_PATH | sys::O_DIRECTORY | sys::O_CLOEXEC, 0)
+            .map_err(|e| (crate::ns_layer::NS_LAYER_LOWER_STEP, e)),
+    }
+}
+
 /// In the child, after the mounts of the rung and before the chroot: each
 /// tmpfs mount (`ns_tmpfs`), then each volume in its order. A volume can
 /// be under a tmpfs; a tmpfs under a volume is refused before the fork.
-/// `Err` gives the step, the errno and the index of the volume or the
-/// tmpfs. No allocation.
-pub(crate) fn bind_each(v: &Volumes) -> std::result::Result<(), (u8, Errno, u8)> {
+/// `userns`: a user namespace owns the mount namespace (an overlay volume
+/// then has `userxattr`). `Err` gives the step, the errno and the index of
+/// the volume or the tmpfs. No allocation.
+pub(crate) fn bind_each(v: &Volumes, userns: bool) -> std::result::Result<(), (u8, Errno, u8)> {
     if v.list.is_empty() && v.tmpfs.is_empty() {
         return Ok(());
     }
@@ -328,7 +364,7 @@ pub(crate) fn bind_each(v: &Volumes) -> std::result::Result<(), (u8, Errno, u8)>
         if out.is_err() {
             break;
         }
-        if let Err((step, e)) = bind_one(root, vol, &v.empty) {
+        if let Err((step, e)) = bind_one(root, vol, &v.empty, userns) {
             out = Err((step, e, at as u8));
             break;
         }
@@ -340,11 +376,15 @@ pub(crate) fn bind_each(v: &Volumes) -> std::result::Result<(), (u8, Errno, u8)>
 /// The refusal of a volume that the child reported, or `None` where the
 /// step is not a step of a volume.
 pub(crate) fn failure(plan: &Plan, step: u8, e: Errno, at: u8) -> Option<Error> {
+    let label = || plan.volumes.get(usize::from(at)).map_or_else(|| format!("number {at}"), volume_label);
+    if let Some((class, text)) = crate::ns_layer::failure(&label(), step, e) {
+        return Some(Error::runtime(class, format!("{text}; the payload did not run")));
+    }
     if !(NS_VOLUME_POINT_STEP..=NS_VOLUME_REMOUNT_STEP).contains(&step) && step != NS_VOLUME_SOURCE_STEP {
         return crate::ns_tmpfs::failure(plan, step, e, at);
     }
     let words = ns_setup_step(step)?;
-    let label = plan.volumes.get(usize::from(at)).map_or_else(|| format!("number {at}"), volume_label);
+    let label = label();
     let (class, text) = if step == NS_VOLUME_LINK_STEP
         || (step == NS_VOLUME_SOURCE_STEP && (e == sys::ELOOP || e == sys::EXDEV))
     {
@@ -391,21 +431,21 @@ pub(crate) fn make_workdir(slash: &CBuf, parts: &[CBuf]) -> std::result::Result<
 
 /// Check the working directory before the fork, on a rung with a chroot: a
 /// directory of the image, of the upper directory of an overlay root over
-/// it (`upper`, [`crate::ns_upper`]), or of the host side of a volume that
-/// serves it. A working directory in a tmpfs of the plan passes: the child
-/// makes it there.
+/// it (`upper`, [`crate::ns_upper`]), of the host side of a volume that
+/// serves it, or of the two layers of an overlay volume. A working
+/// directory in a tmpfs of the plan passes: the child makes it there.
 pub(crate) fn check_workdir(root: &RootDir, plan: &Plan, upper: Option<crate::ns_upper::UpperDir<'_>>) -> Result<()> {
     if crate::ns_tmpfs::holds(plan, &plan.working_dir) {
         return Ok(());
     }
     let refuse = |kind, label: Option<String>| {
         let mut context = format!("in the image's rootfs {:?}", root.path);
-        if let Some(u) = upper {
-            context.push_str(&format!(" under the upper layer {:?}", u.path));
+        if let Some(path) = upper.and_then(|u| u.path) {
+            context.push_str(&format!(" under the upper layer {path:?}"));
         }
         crate::workdir::refuse_workdir(&plan.working_dir, &context, kind, label.as_deref(), None)
     };
-    if plan.volumes.is_empty() && upper.is_none() {
+    if plan.volumes.is_empty() && upper.and_then(|u| u.path).is_none() {
         return crate::entry::workdir_kind(root.path.as_str(), &plan.working_dir).map_err(|k| refuse(k, None));
     }
     let view = crate::ns_upper::View::new(root, plan, upper);

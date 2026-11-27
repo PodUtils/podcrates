@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/ns_volume.rs
++++ b/crates/pod-enter/src/ns_volume.rs
+@@ -301,7 +301,7 @@
+ /// the mount namespace.
+ fn bind_one(root: i64, v: &Prepared, empty: &CBuf, userns: bool) -> std::result::Result<(), (u8, Errno)> {
+     let fd = point(root, v)?;
+-    if let Some(layer) = &v.overlay {
++    if let Some(layer) = v.overlay.as_ref().filter(|_| false) {
+         let r = lower(v).and_then(|low| {
+             let r = crate::ns_layer::mount(layer, low, fd, userns);
+             let _ = sys::close(low);

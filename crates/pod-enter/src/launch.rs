@@ -164,7 +164,7 @@ pub(crate) fn spawn_with(
     // A directory in a volume resolves in the host side of the volume.
     // On an overlay root with an upper directory, the upper layer shows
     // over the image (`ns_upper`).
-    let upper = ns.as_ref().and_then(NsEntry::upper);
+    let upper = ns.as_ref().map(NsEntry::upper);
     let workdir_host = match userland {
         Some(maps) => crate::userland::userland_workdir(root, maps, &plan.working_dir)?,
         None => crate::ns_volume::check_workdir(root, plan, upper).map(|()| None)?,

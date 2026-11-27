@@ -39,7 +39,7 @@ fn tmpfs(guest: &str, bytes: u64) -> TmpfsMount {
 }
 
 fn vol(guest: &str) -> VolumeBind {
-    VolumeBind { host: "/".to_string(), guest: guest.to_string(), read_only: false, host_base: None }
+    VolumeBind { host: "/".to_string(), guest: guest.to_string(), read_only: false, host_base: None, overlay: None }
 }
 
 /// A fresh directory of this test.

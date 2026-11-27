@@ -9,7 +9,9 @@
 //! an unmount of a volume; and the way out of a `chroot(2)` reaches no host
 //! path. A join lands in the namespaces of the payload and gets the same.
 //! A read-only root refuses a write with `EROFS`, and `/tmp`, `/dev`, a
-//! volume and a tmpfs stay writable.
+//! volume and a tmpfs stay writable. An overlay volume keeps its lower
+//! layer and is locked, and a user namespace of the mounts gets the
+//! devices of the host (`locked/layer.rs`, PodUtils/podvm#689).
 //!
 //! Each case runs with and with no PID namespace, on each path: as root
 //! (host root), as a user with no capabilities (uid 65534 where the test
@@ -25,6 +27,9 @@ mod cases;
 #[cfg(target_os = "linux")]
 #[path = "confine/image.rs"]
 mod image;
+#[cfg(target_os = "linux")]
+#[path = "locked/layer.rs"]
+mod layer;
 #[cfg(target_os = "linux")]
 #[path = "locked/probe.rs"]
 mod probe;

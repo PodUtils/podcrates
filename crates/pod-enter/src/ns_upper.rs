@@ -14,7 +14,9 @@
 //! `userxattr` reads neither (kernel 6.18). A volume hides both
 //! layers at its guest path, as the child binds it over the merged root.
 //! `Upper::Tmpfs` has no upper directory here: its upper layer starts
-//! empty, so the lower layer is the view.
+//! empty, so the lower layer is the view. An overlay volume
+//! (`VolumeBind::overlay`, PodUtils/podvm#689) shows its upper directory
+//! over its host path by the same rules.
 
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
@@ -26,12 +28,12 @@ use crate::abi::GuestRoot;
 use crate::userland::Maps;
 use crate::{Plan, RootDir};
 
-/// The upper directory of an overlay root, and whether its mount has
-/// `userxattr`: the mount then reads `user.overlay.opaque`, else
-/// `trusted.overlay.opaque`.
+/// The upper directory of an overlay root, where it has one, and whether
+/// the overlay mounts (the root and each overlay volume) have `userxattr`:
+/// a mount then reads `user.overlay.opaque`, else `trusted.overlay.opaque`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct UpperDir<'a> {
-    pub(crate) path: &'a str,
+    pub(crate) path: Option<&'a str>,
     pub(crate) userxattr: bool,
 }
 
@@ -48,7 +50,10 @@ pub(crate) struct View {
     maps: Maps,
     /// The upper directory of an overlay root.
     upper: Option<PathBuf>,
-    /// The attribute of an opaque directory that the mount reads.
+    /// The upper directory of each overlay volume, in the order of the
+    /// volumes of the plan; `None` for a bind.
+    layers: Vec<Option<PathBuf>>,
+    /// The attribute of an opaque directory that the mounts read.
     opaque: &'static str,
 }
 
@@ -56,18 +61,20 @@ impl View {
     /// The view of `root` with the volumes of `plan` and the upper
     /// directory `upper`, where the root is an overlay with one.
     pub(crate) fn new(root: &RootDir, plan: &Plan, upper: Option<UpperDir<'_>>) -> View {
+        let layers = plan.volumes.iter().map(|v| v.overlay.as_ref().map(|l| PathBuf::from(&l.upper))).collect();
         View {
             maps: Maps::of_binds(&root.path, &plan.volumes),
-            upper: upper.map(|u| PathBuf::from(u.path)),
+            upper: upper.and_then(|u| u.path).map(PathBuf::from),
+            layers,
             opaque: upper.map_or("trusted.overlay.opaque", |u| u.opaque()),
         }
     }
 
-    /// The host path that the two layers show at `parts`, or `None` where
-    /// they show nothing: no entry, a whiteout, or an entry of the lower
-    /// layer under an opaque directory.
-    fn merged(&self, upper: &Path, parts: &[String]) -> Option<PathBuf> {
-        let lower = self.maps.root().to_path_buf();
+    /// The host path that the two layers show at `parts` (relative to the
+    /// root of the layers), or `None` where they show nothing: no entry, a
+    /// whiteout, or an entry of the lower layer under an opaque directory.
+    fn merged(&self, upper: &Path, lower: &Path, parts: &[String]) -> Option<PathBuf> {
+        let lower = lower.to_path_buf();
         let Some((last, dirs)) = parts.split_last() else { return Some(lower) };
         let opaque = |dir: &Path| opaque(dir, self.opaque);
         let mut layers = (Some(upper.to_path_buf()), (!opaque(upper)).then_some(lower));
@@ -87,10 +94,18 @@ impl View {
         entry(&layers, last).map(|(path, _, _)| path)
     }
 
-    /// Where the upper directory takes part in the view of `parts`: a path
-    /// that no volume serves.
-    fn layered(&self, parts: &[String]) -> Option<&Path> {
-        self.upper.as_deref().filter(|_| !self.maps.in_volume(parts))
+    /// Where an upper directory takes part in the view of `parts`: the
+    /// upper and the lower directory, and the rest of `parts` under them.
+    /// An overlay volume for a path in it; the overlay root for a path that
+    /// no volume serves.
+    fn layered<'p>(&self, parts: &'p [String]) -> Option<(&Path, PathBuf, &'p [String])> {
+        match self.maps.volume_of(parts) {
+            Some((at, depth)) => {
+                let upper = self.layers.get(at)?.as_deref()?;
+                Some((upper, PathBuf::from(&self.maps.volumes()[at].host), &parts[depth..]))
+            }
+            None => self.upper.as_deref().map(|u| (u, self.maps.root().to_path_buf(), parts)),
+        }
     }
 }
 
@@ -134,14 +149,18 @@ impl GuestRoot for View {
     fn host_of(&self, parts: &[String]) -> (PathBuf, bool) {
         match self.layered(parts) {
             // A path that the layers do not show is no host path: `hidden`
-            // says so to the walk.
-            Some(upper) => (self.merged(upper, parts).unwrap_or_else(|| upper.join(parts.join("/"))), false),
+            // says so to the walk. The root of an overlay volume is its
+            // mount, as the root of a bind is.
+            Some((upper, lower, rest)) => {
+                let shown = self.merged(upper, &lower, rest).unwrap_or_else(|| upper.join(rest.join("/")));
+                (shown, rest.is_empty() && rest.len() < parts.len())
+            }
             None => self.maps.host_of(parts),
         }
     }
 
     fn hidden(&self, parts: &[String]) -> bool {
-        self.layered(parts).is_some_and(|upper| self.merged(upper, parts).is_none())
+        self.layered(parts).is_some_and(|(upper, lower, rest)| self.merged(upper, &lower, rest).is_none())
     }
 
     fn above_mount(&self, parts: &[String]) -> bool {

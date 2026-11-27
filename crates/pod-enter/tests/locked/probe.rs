@@ -39,6 +39,19 @@ fn escape(marker: &str) -> i64 {
     k::stat(&c(marker)).map_or_else(|e| -i64::from(e.0), |_| 0)
 }
 
+/// Write `bytes` into the file `path` opened with `flags`: the count of the
+/// bytes, or the negative errno.
+fn put(path: &CBuf, flags: u64, bytes: &[u8]) -> i64 {
+    match k::open(path, flags | k::O_WRONLY | k::O_TRUNC | k::O_CLOEXEC, 0o644) {
+        Ok(fd) => {
+            let r = code(k::write(fd, bytes).map(|_| 0)).min(0);
+            let _ = k::close(fd);
+            if r < 0 { r } else { bytes.len() as i64 }
+        }
+        Err(e) => -i64::from(e.0),
+    }
+}
+
 /// One operation.
 fn op(op: &str, path: &str) -> i64 {
     let (empty, p) = (k::cempty(), c(path));
@@ -50,6 +63,14 @@ fn op(op: &str, path: &str) -> i64 {
         "umount" => code(k::umount(&p)),
         "write" => code(k::open(&p, k::O_CREAT | k::O_WRONLY | k::O_CLOEXEC, 0o644)),
         "escape" => escape(path),
+        // A new file, and a change of a file that exists.
+        "put" => put(&p, k::O_CREAT, b"new"),
+        "change" => put(&p, 0, b"changed"),
+        "unlink" => code(k::unlink(&p)),
+        "stat" => code(k::stat(&p).map(|_| 0)),
+        // 1 for a character device that is not a whiteout, else 0.
+        "chr" => k::stat(&p).map_or_else(|e| -i64::from(e.0), |st| i64::from(st.is_chardev() && st.st_rdev != 0)),
+        "rdwr" => code(k::open(&p, k::O_RDWR | k::O_NOCTTY | k::O_CLOEXEC, 0)),
         // The inode of a namespace of this process.
         "ns" => std::fs::metadata(format!("/proc/self/ns/{path}")).map_or(-1, |m| m.ino() as i64),
         _ => -1000,

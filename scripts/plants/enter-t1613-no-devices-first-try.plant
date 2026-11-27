@@ -1,0 +1,7 @@
+# The first try of the namespace rung of a caller in a user namespace binds
+# no device of the host (T-1613, PodUtils/podvm#689).
+ENTRY=T-1613
+GROUP=confine
+EXPECT='a user namespace of the mounts gets the devices of the host, with no PID namespace \.\.\. FAILED: chr:/dev/null gave 0'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

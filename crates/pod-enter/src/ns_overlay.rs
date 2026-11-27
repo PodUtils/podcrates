@@ -251,7 +251,7 @@ pub(crate) fn namespace_root_entry(root: Root<'_>, plan: &Plan, banner: bool, er
     };
     let overlay = Some(OverlayMount::new(lower, upper)?);
     let optional = optional_mounts(&lower.path, &plan.names);
-    let mut mount = NsMount { user: None, tmp_target, optional, overlay, devices: None };
+    let mut mount = NsMount { user: None, tmp_target, optional, overlay, devices: None, caller_userns: false };
     match crate::ns_user::spawn_own(lower, plan, &mut mount, banner, err).result {
         Err(Error::NsSetup { step, errno }) => Err(Error::Overlay { step: overlay_step(step), errno }),
         other => other,

@@ -64,6 +64,7 @@ mod launch;
 mod names;
 mod ns_dev_bind;
 mod ns_join;
+mod ns_layer;
 mod ns_lock;
 mod ns_optional;
 mod ns_overlay;
@@ -98,6 +99,7 @@ pub use ns_join::{
     Member, NS_JOIN_OWNER_STEP, NS_JOIN_PID_STEP, NS_JOIN_USER_PID_STEP, NS_JOIN_USER_STEP, fdinfo_pid, ids_of,
     joinable, mount_owner, other_namespace, other_user_namespace,
 };
+pub use ns_layer::{NS_LAYER_LOWER_STEP, NS_LAYER_MOUNT_STEP, NS_LAYER_OVERLAP_STEP, mount_step as layer_mount_step};
 pub use ns_lock::{NS_LOCK_USER_STEP, NS_NESTED_NS_STEP};
 pub use ns_optional::{NS_PROC_STEP, NS_PTS_STEP, ns_proc_refused, ns_proc_target, ns_pts_target, ns_refused_line};
 pub use ns_overlay::{
@@ -122,7 +124,7 @@ pub use ns_volume::{
     MOST as VOLUMES_MOST, NS_VOLUME_BIND_STEP, NS_VOLUME_LINK_STEP, NS_VOLUME_POINT_STEP, NS_VOLUME_REMOUNT_STEP,
     guest_parts as volume_guest_parts, remount_flags as volume_remount_flags, volume_label,
 };
-pub use plan::{Plan, Program, TmpfsMount, VolumeBind};
+pub use plan::{OverlayLayers, Plan, Program, TmpfsMount, VolumeBind};
 /// Block [`WAIT_FORWARDED`] in the calling thread, and report the earlier
 /// mask for `sys::sigrestore`: the call for each other thread of a process
 /// that waits with [`Child::wait_forwarding`].
