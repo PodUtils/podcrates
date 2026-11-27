@@ -26,3 +26,10 @@ pod-testkit = { workspace = true }
 [[test]]
 name = "confine"
 harness = false
+
+# The locks of the mounts of the namespace rung against its payload: a test
+# binary with no libtest, so that a child forks from a process with one
+# thread, and the binary is the payload itself (its first argument `probe`).
+[[test]]
+name = "locked"
+harness = false
