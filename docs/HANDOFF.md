@@ -60,7 +60,7 @@ is done. Git and the record keep finished work.
      (COORD-266, T-1580 to T-1582) and #683 (COORD-261, T-1583).
    - In work: PodUtils/podvm#695 (COORD-268, security P1: `pivot_root`,
      a nested user namespace for the payload, the joins, a read-only
-     root) in `pod-enter`, T-1560 and up. After it, in `pod-enter`:
+     root) in `pod-enter`, on the branch `enter695`. After it, in `pod-enter`:
      PodUtils/podvm#689 (COORD-264, an overlay volume and the device
      nodes), #692 ask 2 (the mode of a tmpfs) and #684 (COORD-262, a walk
      that keeps `..` at the root). PodUtils/podrunner#378 and
