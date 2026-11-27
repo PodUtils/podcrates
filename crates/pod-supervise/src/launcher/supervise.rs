@@ -5,10 +5,17 @@ use crate::lock::Lock;
 
 /// The launcher. It runs in the forked child and never returns to the code
 /// of the caller: its value is the exit code of the process.
-pub(super) fn supervise<X, F>(s: &Settings, container: &Container<X>, enter: F, log: std::fs::File, ready_w: i64) -> i32
+pub(super) fn supervise<X, F, E>(
+    s: &Settings,
+    container: &Container<X>,
+    enter: F,
+    log: std::fs::File,
+    ready_w: i64,
+) -> i32
 where
     X: Clone + Serialize + DeserializeOwned,
-    F: FnOnce(&Container<X>, Launch<'_>) -> std::result::Result<Payload, String>,
+    F: FnOnce(&Container<X>, Launch<'_>) -> std::result::Result<Payload, E>,
+    E: Into<EntryFailure>,
 {
     let say = |msg: &str| {
         let _ = sys::write(ready_w, msg.as_bytes());
@@ -107,7 +114,7 @@ where
     let payload = match enter(container, Launch { pass, log: log_for_entry }) {
         Ok(p) => p,
         Err(e) => {
-            say(&format!("err {e}"));
+            say(&e.into().line());
             return 1;
         }
     };

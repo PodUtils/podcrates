@@ -145,6 +145,8 @@ pub struct Client {
     /// the host alone would send it and read the 403 as a refused
     /// permission.
     tokens: HashMap<String, String>,
+    /// Set when a request sent a stored login: [`Client::ping`] reads it.
+    sent_login: bool,
 }
 
 impl Client {
@@ -160,6 +162,7 @@ impl Client {
             file_ceiling: None,
             http_endpoints: BTreeSet::new(),
             tokens: HashMap::new(),
+            sent_login: false,
         }
     }
 
@@ -442,7 +445,9 @@ fn http(class: Class, what: &str, detail: impl std::fmt::Display) -> Failure {
 }
 
 mod http;
+mod ping;
 mod wire;
+pub use ping::Ping;
 use wire::backoff;
 pub use wire::redact;
 

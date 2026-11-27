@@ -174,6 +174,7 @@ impl Client {
             }
         };
         let header = crate::credentials::basic_header(&cred);
+        self.sent_login = true;
         match self.send(url, scope, accept, Some(&header), verify) {
             Ok(r) => Ok(Attempt::Done(Box::new(r))),
             Err(e) => Err(status_error(url, e)),
@@ -226,8 +227,12 @@ impl Client {
         // The scope of the challenge when it gives one, else the scope of
         // this request: a registry that omits it still needs to know what the
         // token is for.
+        // An empty scope (the ping of `/v2/`) asks for no access: the realm
+        // then checks the login alone, as for `docker login`.
         let wanted = params.get("scope").map(String::as_str).unwrap_or(scope);
-        url.push_str(&format!("{sep}scope={}", query_value(wanted)));
+        if !wanted.is_empty() {
+            url.push_str(&format!("{sep}scope={}", query_value(wanted)));
+        }
 
         // A stored login goes to the realm as `Basic`. No login: no
         // credential, as before. A failed helper refuses here, not a token
@@ -236,7 +241,10 @@ impl Client {
         let mut headers: Vec<(&str, String)> = Vec::new();
         if let Some(realm_host) = host_of(realm) {
             match self.logins.lookup(&realm_host) {
-                Ok(Some(cred)) => headers.push(("Authorization", crate::credentials::basic_header(&cred))),
+                Ok(Some(cred)) => {
+                    headers.push(("Authorization", crate::credentials::basic_header(&cred)));
+                    self.sent_login = true;
+                }
                 Ok(None) => {}
                 Err(refused) => {
                     return Err(Failure::caused(

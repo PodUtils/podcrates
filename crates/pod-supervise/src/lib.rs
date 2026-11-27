@@ -217,10 +217,11 @@ where
 
 /// Start a created container, and return when its payload runs. `enter`
 /// starts the payload in the launcher ([`launcher::start`]).
-pub fn start<X, F>(s: &Settings, want: &str, enter: F) -> Result<Container<X>>
+pub fn start<X, F, E>(s: &Settings, want: &str, enter: F) -> Result<Container<X>>
 where
     X: Clone + Serialize + DeserializeOwned,
-    F: FnOnce(&Container<X>, launcher::Launch<'_>) -> std::result::Result<launcher::Payload, String>,
+    F: FnOnce(&Container<X>, launcher::Launch<'_>) -> std::result::Result<launcher::Payload, E>,
+    E: Into<launcher::EntryFailure>,
 {
     let table = table::reconcile::<X>(s)?;
     let c = table::find(s, &table, want)?;

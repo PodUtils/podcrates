@@ -149,16 +149,19 @@ fn connect(s: &Settings, id: &str) -> Result<UnixStream> {
 ///
 /// `enter` runs in the launcher, after the lock, the control socket and the
 /// stdio of the payload are ready, and starts the payload: a child of the
-/// launcher. Its `Err` text goes back to the caller as the failure.
+/// launcher. Its `Err` goes back to the caller as the failure, class
+/// `Unavailable`, with the [`EntryFailure`] as its cause: a caller reads
+/// the exit code of a failed spawn with [`EntryFailure::of`].
 ///
 /// The ready answer comes on a pipe, not from a timer: this returns `Ok`
 /// only after the launcher said that the payload runs, so a caller never
 /// has to guess whether a container that it cannot see yet is starting or
 /// dead.
-pub fn start<X, F>(s: &Settings, container: &Container<X>, enter: F) -> Result<(i64, i64)>
+pub fn start<X, F, E>(s: &Settings, container: &Container<X>, enter: F) -> Result<(i64, i64)>
 where
     X: Clone + Serialize + DeserializeOwned,
-    F: FnOnce(&Container<X>, Launch<'_>) -> std::result::Result<Payload, String>,
+    F: FnOnce(&Container<X>, Launch<'_>) -> std::result::Result<Payload, E>,
+    E: Into<EntryFailure>,
 {
     // The fork below runs code of this crate in the child. A thread of a
     // foreground hold can hold a lock of the allocator at the fork, and the
@@ -275,12 +278,14 @@ where
         None if text.is_empty() => {
             Err(failure(Class::Unavailable, "the launcher exited and did not say whether the payload started"))
         }
-        None => Err(failure(Class::Unavailable, text.trim_start_matches("err ").to_string())),
+        None => Err(EntryFailure::parse(&text).unwrap_or_else(|| text.clone().into()).failure()),
     }
 }
 
+mod entry;
 mod supervise;
 pub mod tree;
+pub use entry::EntryFailure;
 use supervise::supervise;
 
 /// docker's exit code for a `wait4` status: the code of an exit, or 128 and

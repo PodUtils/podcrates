@@ -37,6 +37,8 @@ pub enum Auth {
     /// `auth: token` at `realm`, signed under the root of the test: a
     /// `Bearer` challenge.
     Token { realm: String },
+    /// No `auth` section: the registry asks for no login.
+    Open,
 }
 
 pub struct Registry {
@@ -77,20 +79,22 @@ impl Registry {
                 String::new()
             };
             let auth_part = match &auth {
-                Auth::Htpasswd => format!("  htpasswd:\n    realm: pod-oci-test\n    path: {}\n", path("htpasswd")),
+                Auth::Htpasswd => {
+                    format!("auth:\n  htpasswd:\n    realm: pod-oci-test\n    path: {}\n", path("htpasswd"))
+                }
                 Auth::Token { realm } => format!(
-                    "  token:\n    realm: {realm}\n    service: {}\n    issuer: {}\n    rootcertbundle: {}\n",
+                    "auth:\n  token:\n    realm: {realm}\n    service: {}\n    issuer: {}\n    rootcertbundle: {}\n",
                     super::SERVICE,
                     super::ISSUER,
                     path("anchor.pem")
                 ),
+                Auth::Open => String::new(),
             };
             // No cache of descriptors: a test changes a blob in the store, and
             // the registry must read the store.
             let config = format!(
                 "version: 0.1\nlog:\n  level: info\n  accesslog:\n    disabled: true\nstorage:\n  filesystem:\n    \
-                 rootdirectory: {store}\nhttp:\n  addr: {at}:{port}\n{tls_part}\
-                 auth:\n{auth_part}",
+                 rootdirectory: {store}\nhttp:\n  addr: {at}:{port}\n{tls_part}{auth_part}",
                 store = path("store"),
                 at = super::AT,
             );
