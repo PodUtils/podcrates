@@ -146,4 +146,4 @@ if [ "$dev_tools" = 1 ]; then
         echo "cloud-setup: install$missing by hand (no apt-get, or no root and no sudo with no password)" >&2
     fi
 fi
-echo "cloud-setup: ready ($(zig version 2> /dev/null || echo 'zig not on PATH: add $HOME/.local/bin'))"
+echo "cloud-setup: ready ($(zig version 2> /dev/null || echo "zig not on PATH: add \$HOME/.local/bin"))"

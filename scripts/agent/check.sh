@@ -14,11 +14,11 @@
 # each change of a schema (scripts/check-schemas.py), the writer of the
 # release index (scripts/release-index.py --self-test), the self-tests of the
 # watchers (scripts/agent/watch.py, runs.py), no new repeated work
-# (scripts/codegraph.py dups), that each planted defect applies (scripts/plant-each.sh
-# --apply), shellcheck of the installer when it is there, and the static probes and
-# the binary pod-release of x86_64 musl when zig is there (scripts/check-static.sh,
-# scripts/check-strings.py). Print each exit
-# code and the first faults; exit 1 on a fault. It also prints what the
+# (scripts/codegraph.py dups), that each planted defect applies
+# (scripts/plant-each.sh --apply), shellcheck of the installer and of the
+# start scripts when it is there, and the static probes and the binary
+# pod-release of x86_64 musl when zig is there (scripts/check-static.sh,
+# scripts/check-strings.py). Print each exit code and the first faults; exit 1 on a fault. It also prints what the
 # change against origin/main looks like (scripts/codegraph.py new), as a
 # hint. With the argument notest, the tests are skipped.
 #
@@ -107,7 +107,8 @@ echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
 python3 -I scripts/codegraph.py new --base origin/main 2>&1 | grep -v "^codegraph: 0 new items" | head -20
 if command -v shellcheck > /dev/null 2>&1; then
     shellcheck -x --shell=sh scripts/install/core.sh scripts/install/core-net.sh scripts/install/podlab.sh \
-        scripts/install/test.sh scripts/install/test-cases.sh > "$log/shellcheck.log" 2>&1; sc=$?
+        scripts/install/test.sh scripts/install/test-cases.sh scripts/session-start.sh scripts/cloud-setup.sh \
+        scripts/cloud-env.sh scripts/agent/check.sh .claude/session-start.sh > "$log/shellcheck.log" 2>&1; sc=$?
     echo "shellcheck $sc"; [ "$sc" -eq 0 ] || { rc=1; head -20 "$log/shellcheck.log"; }
 fi
 if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; then

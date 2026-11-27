@@ -146,12 +146,14 @@ if [ -n "$run" ]; then
     fi
     echo "session-start: $1 runs in the foreground; its log is $log"
     echo "$$" > ".work/$run.pid"
+    script=scripts/agent/$1
+    shift
     if command -v flock > /dev/null 2>&1 && flock --help 2>&1 | grep -q -- --no-fork; then
-        exec flock -n -F ".work/$run.lock" python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null
+        exec flock -n -F ".work/$run.lock" python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null
     elif command -v flock > /dev/null 2>&1; then
-        exec flock -n ".work/$run.lock" python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null
+        exec flock -n ".work/$run.lock" python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null
     fi
-    exec python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null
+    exec python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null
 fi
 
 # No prompt for credentials and a limit of time: a host with no network or
@@ -208,15 +210,18 @@ start() {
     if command -v flock > /dev/null 2>&1; then
         lock="flock -n .work/$name.lock"
     fi
+    script=scripts/agent/$1
+    shift
     # $lock is empty or three words: it is not quoted on purpose.
     if command -v setsid > /dev/null 2>&1; then
         # shellcheck disable=SC2086
-        setsid $lock python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null 9>&- &
+        setsid $lock python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null 9>&- &
     else
         # shellcheck disable=SC2086
-        nohup $lock python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null 9>&- &
+        nohup $lock python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null 9>&- &
     fi
     echo "$!" > ".work/$name.pid"
+    set -- "$name.py" "$@"
     for _ in 1 2 3 4 5; do
         sleep 1
         if running "$@"; then
