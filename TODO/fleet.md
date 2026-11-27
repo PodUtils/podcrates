@@ -10224,7 +10224,7 @@ python3 -I scripts/check-schemas.py --no-fetch
 
 ## Done
 
-2026-11-27, this commit. `pod_job::Status` has `no_tier_served_causes:
+2026-11-27, commit COMMIT. `pod_job::Status` has `no_tier_served_causes:
 Vec<NoTierCause>`, absent on the wire when empty, and `pod_job::NoTierCause`
 has `source`, `kind`, `cause` and `fix: Option<String>` (absent on the wire
 when `None`), with `deny_unknown_fields`. `Status::check` refuses entries

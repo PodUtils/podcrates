@@ -1,0 +1,11 @@
+--- a/crates/pod-job/src/status.rs
++++ b/crates/pod-job/src/status.rs
+@@ -145,7 +145,7 @@ impl Status {
+         if self.schema != SCHEMA {
+             return Err(format!("schema {} is not {SCHEMA}", self.schema));
+         }
+-        if !self.no_tier_served && !self.no_tier_served_causes.is_empty() {
++        if false && !self.no_tier_served_causes.is_empty() {
+             return Err("no_tier_served_causes needs no_tier_served".into());
+         }
+         for kind in &self.kinds {

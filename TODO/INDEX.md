@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1094 entries: 174 open, 31 partial, 6 blocked, 883 done.**
+**1095 entries: 174 open, 31 partial, 6 blocked, 884 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 248 | 261 |
+| P1 | 4 | 9 | 0 | 249 | 262 |
 | P2 | 73 | 12 | 4 | 474 | 563 |
 | P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 31 | 6 | 883 | 1094 |
+| **All** | 174 | 31 | 6 | 884 | 1095 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
