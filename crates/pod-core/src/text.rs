@@ -370,10 +370,11 @@ mod tests {
 
     #[test]
     fn io_words_drop_the_code_of_the_system_and_keep_its_words() {
+        use pod_testkit::os::{MISSING, RESET};
         use std::io::{Error, ErrorKind};
         let table = [
-            (Error::from_raw_os_error(2), "No such file or directory"),
-            (Error::from_raw_os_error(104), "Connection reset by peer"),
+            (Error::from_raw_os_error(MISSING.0), MISSING.1),
+            (Error::from_raw_os_error(RESET.0), RESET.1),
             (Error::from(ErrorKind::NotFound), "entity not found"),
             (Error::other("the pair is stale"), "the pair is stale"),
             (Error::other("kept (os error x) text"), "kept (os error x) text"),

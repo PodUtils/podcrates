@@ -20,6 +20,8 @@
 //!   starts the test binary again as uid 65534.
 //! * `elf`: a static ELF made in the test (x86_64 and aarch64), and
 //!   the check of a dynamic one (Linux only).
+//! * `os` (Unix and Windows): the codes and the words of the errors of
+//!   the system that a test makes, for each system.
 //! * [`tamper`]: one changed bit of a file, for the test of a check that
 //!   must refuse it.
 //! * [`schema`] (feature `schema`): the file of a JSON Schema of `schemas/`
@@ -61,6 +63,8 @@ pub mod listener;
 pub mod masque;
 #[cfg(target_os = "linux")]
 pub mod nobody;
+#[cfg(any(unix, windows))]
+pub mod os;
 #[cfg(feature = "refused")]
 pub mod refused;
 #[cfg(feature = "schema")]

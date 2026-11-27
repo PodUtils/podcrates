@@ -274,8 +274,9 @@ mod tests {
 
     #[test]
     fn a_mint_that_was_cut_shows_the_words_of_the_system_with_no_code() {
-        let line = no_answer(&std::io::Error::from_raw_os_error(104));
-        assert!(line.contains("Connection reset by peer"), "{line}");
+        let (code, words) = pod_testkit::os::RESET;
+        let line = no_answer(&std::io::Error::from_raw_os_error(code));
+        assert!(line.contains(&format!("(reset: {words})")), "{line}");
         assert!(!line.contains("os error"), "{line}");
         assert!(line.ends_with("): a hop may cut cleartext"), "{line}");
     }
