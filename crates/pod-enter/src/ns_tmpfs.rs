@@ -7,13 +7,14 @@
 //! is not at or under the guest path of a volume (a volume binds after the
 //! tmpfs mounts and would hide it, and a mount point under a volume would
 //! be made in the host path). The limit is a [`std::num::NonZeroU64`]: a
-//! tmpfs with `size=0` has no limit. A refusal names the mount, before the
-//! banner and the fork.
+//! tmpfs with `size=0` has no limit. A mode over `0o7777` is refused. A
+//! refusal names the mount, before the banner and the fork.
 //!
 //! In the child, after the mounts of the rung and before the volumes: the
 //! walk of the volumes makes the mount point under the root path, with no
 //! symbolic link (`ns_volume::walk`), then `mount("tmpfs",
-//! /proc/self/fd/N, "tmpfs", MS_NOSUID | MS_NODEV, "size=N")`. A new walk
+//! /proc/self/fd/N, "tmpfs", MS_NOSUID | MS_NODEV, "size=N[,mode=M]")`,
+//! with the mode in octal where the plan gives one. A new walk
 //! crosses into the mount, and `fstatfs` reads it back: a file system that
 //! is not a tmpfs, or a size that is not the limit in whole blocks, stops
 //! the payload at [`NS_TMPFS_LIMIT_STEP`]. The kernel then did not enforce
@@ -49,10 +50,26 @@ pub const MOST: usize = 255;
 /// The magic number of a tmpfs (`TMPFS_MAGIC`, `include/uapi/linux/magic.h`).
 const TMPFS_MAGIC: u64 = 0x0102_1994;
 
-/// A tmpfs as `GUEST:size=N`, the words of podvm's `--tmpfs`, for a
-/// refusal.
+/// A tmpfs as `GUEST:size=N`, or `GUEST:mode=M,size=N` with a mode, the
+/// words of podvm's `--tmpfs`, for a refusal.
 pub fn tmpfs_label(t: &TmpfsMount) -> String {
-    format!("{}:size={}", t.guest, t.bytes)
+    match t.mode {
+        None => format!("{}:size={}", t.guest, t.bytes),
+        Some(m) => format!("{}:mode={m:o},size={}", t.guest, t.bytes),
+    }
+}
+
+/// The highest mode of a tmpfs root: the permission bits, set-user-ID,
+/// set-group-ID and the sticky bit.
+pub const MODE_MOST: u32 = 0o7777;
+
+/// The options of the mount of a tmpfs: `size=N`, and `mode=M` in octal
+/// where the plan gives a mode.
+pub fn tmpfs_options(bytes: u64, mode: Option<u32>) -> String {
+    match mode {
+        None => format!("size={bytes}"),
+        Some(m) => format!("size={bytes},mode={m:o}"),
+    }
 }
 
 /// The words of a step of a tmpfs, or `None` where the step is not one.
@@ -125,10 +142,13 @@ pub(crate) fn prepare(plan: &Plan) -> Result<Tmpfs> {
                 volume_label(v)
             )));
         }
+        if let Some(m) = t.mode.filter(|m| *m > MODE_MOST) {
+            return Err(usage(&format!("has the mode {m:o}, over the highest mode {MODE_MOST:o}")));
+        }
         let nul = || usage("has a NUL byte");
         let parts_c = parts.iter().map(|p| CBuf::new(p).ok_or_else(nul)).collect::<Result<Vec<_>>>()?;
         let bytes = t.bytes.get();
-        let data = CBuf::new(&format!("size={bytes}")).ok_or_else(nul)?;
+        let data = CBuf::new(&tmpfs_options(bytes, t.mode)).ok_or_else(nul)?;
         out.list.push(Prepared { parts: parts_c, data, bytes });
         seen.push(parts);
     }

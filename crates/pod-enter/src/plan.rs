@@ -131,7 +131,9 @@ pub struct VolumeBind {
 
 /// One tmpfs of the namespace rung: a file system in memory of at most
 /// `bytes` bytes on the guest path `guest` (`--tmpfs GUEST:size=N`), with
-/// `nosuid` and `nodev`.
+/// `nosuid` and `nodev`. `mode` is the mode of its root
+/// (`--tmpfs GUEST:mode=M,size=N`), at most `0o7777`; `None` is the mode of
+/// the kernel, `1777`.
 ///
 /// `guest` is an absolute normal path that is not `/`, and not at or under
 /// the guest path of a volume; the child makes each missing directory of
@@ -164,6 +166,7 @@ impl Plan {
     /// added.
     pub fn argv_for(
         entrypoint: Option<&[String]>,
+    pub mode: Option<u32>,
         cmd: Option<&[String]>,
         caller: &[String],
         override_entrypoint: Option<&str>,

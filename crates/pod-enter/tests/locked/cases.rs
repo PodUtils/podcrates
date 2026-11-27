@@ -139,7 +139,7 @@ fn plan(t: &Tree, ops: &[String], pid: bool, read_only_root: bool) -> Plan {
         volumes: vec![volume(&t.ro, "/ro", true), volume(&t.rw, "/rw", false)],
         userns_ids: None,
         pid_namespace: pid,
-        tmpfs: vec![TmpfsMount { guest: "/t".to_string(), bytes }],
+        tmpfs: vec![TmpfsMount { guest: "/t".to_string(), bytes, mode: None }],
         relay_title: None,
         read_only_root,
     }

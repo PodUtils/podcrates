@@ -35,7 +35,7 @@ fn plan(tmpfs: Vec<TmpfsMount>, volumes: Vec<VolumeBind>) -> Plan {
 }
 
 fn tmpfs(guest: &str, bytes: u64) -> TmpfsMount {
-    TmpfsMount { guest: guest.to_string(), bytes: NonZeroU64::new(bytes).unwrap() }
+    TmpfsMount { guest: guest.to_string(), bytes: NonZeroU64::new(bytes).unwrap(), mode: None }
 }
 
 fn vol(guest: &str) -> VolumeBind {
@@ -81,9 +81,13 @@ fn a_tmpfs_is_checked_before_the_fork() {
     assert!(e.contains("is at or under the guest path of the volume /:/data"), "{e}");
     let e = refused(vec![tmpfs("/w", 1); MOST + 1], Vec::new());
     assert!(e.contains(&format!("a plan takes at most {MOST}")), "{e}");
-    let ok = prepare(&plan(vec![tmpfs("/w", 1 << 20), tmpfs("/tmp", 4096)], vec![vol("/w/src")])).unwrap();
+    let e = refused(vec![TmpfsMount { mode: Some(0o10000), ..tmpfs("/w", 1) }], Vec::new());
+    assert!(e.contains("the tmpfs /w:mode=10000,size=1 has the mode 10000, over the highest mode 7777"), "{e}");
+    let moded = TmpfsMount { mode: Some(0o1750), ..tmpfs("/m", 8192) };
+    let ok = prepare(&plan(vec![tmpfs("/w", 1 << 20), tmpfs("/tmp", 4096), moded], vec![vol("/w/src")])).unwrap();
     let kinds: Vec<(usize, Vec<u8>, u64)> = ok.list.iter().map(|p| (p.parts.len(), bytes(&p.data), p.bytes)).collect();
-    assert_eq!(kinds, vec![(1, b"size=1048576".to_vec(), 1 << 20), (1, b"size=4096".to_vec(), 4096)]);
+    let want = [(1, &b"size=1048576"[..], 1 << 20), (1, b"size=4096", 4096), (1, b"size=8192,mode=1750", 8192)];
+    assert_eq!(kinds, want.map(|(n, d, b)| (n, d.to_vec(), b)).to_vec());
     assert!(prepare(&plan(Vec::new(), Vec::new())).unwrap().is_empty());
 }
 

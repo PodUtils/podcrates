@@ -16604,7 +16604,7 @@ refusal of a `..` above the root.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16636,6 +16636,26 @@ of the root of the tmpfs and the line of the mount.
 cargo test -p pod-enter --all-features ns_tmpfs
 PODVM_T486_BUSYBOX=/path/to/busybox cargo test -p pod-enter --all-features --test userns a_tmpfs_of_the_plan_holds_its_byte_limit
 ```
+
+## Done
+
+2026-11-27, the second commit of the branch `enter689` (subject
+`pod-enter: the mode of a tmpfs of the plan (T-1611)`).
+`TmpfsMount::mode: Option<u32>`; the mount data is `size=N,mode=M` (octal,
+`pod_enter::tmpfs_options`); a mode over `TMPFS_MODE_MOST` (`0o7777`) is a
+refusal by name before the fork; `tmpfs_label` gives `GUEST:mode=M,size=N`.
+Tests: `ns_tmpfs::tests::a_tmpfs_is_checked_before_the_fork` (the
+refusal of `0o10000`, and the data `size=8192,mode=1750`);
+`tests/userns/tmpfs.rs` (`a_tmpfs_of_the_plan_holds_its_byte_limit`): the
+payload reads mode 750 of the root of the tmpfs and `mode=750` in its
+mount line, as root, as uid 65534 and as uid 1000, with a static busybox
+(17 passed each). Plant:
+`scripts/plants/enter-t1611-tmpfs-mode-dropped.plant`, caught here.
+Breaks of podvm (no compatibility): each `pod_enter::TmpfsMount` literal
+adds `mode` (podvm names it `podvm_enter::TmpfsMount`; its users at podvm
+`main` are `PodUtils/podvm:crates/podvm/src/run/tmpfs.rs` and
+`PodUtils/podvm:crates/podvm-supervise/src/launcher/tmpfs.rs`, with their
+tests). podvm then drops its refusal of a mode other than 1777 with a size.
 
 # T-1612: `pod-enter`: no overlay kind of volume in `Plan::volumes`, so podvm mounts `-v HOST:GUEST:overlay` in a namespace step of its own (PodUtils/podvm#689)
 

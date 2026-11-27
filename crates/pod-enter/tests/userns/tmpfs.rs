@@ -14,7 +14,7 @@ use pod_enter::{NS_TMPFS_LIMIT_STEP, NS_TMPFS_LINK_STEP, TmpfsMount, ns_setup_st
 const LIMIT: u64 = 1 << 20;
 
 fn work(bytes: u64) -> TmpfsMount {
-    TmpfsMount { guest: "/work".to_string(), bytes: NonZeroU64::new(bytes).unwrap() }
+    TmpfsMount { guest: "/work".to_string(), bytes: NonZeroU64::new(bytes).unwrap(), mode: None }
 }
 
 /// The checks of the payload on the mount `/work` of [`LIMIT`]: one line in
@@ -73,12 +73,23 @@ pub fn limited(root: &Path, _vols: &Path) {
     // A guest path through a link of the image: refused with the step, and
     // nothing made through the link.
     let mut p = plan("exit 0", None);
-    p.tmpfs = vec![TmpfsMount { guest: "/lnk/x".to_string(), bytes: NonZeroU64::new(LIMIT).unwrap() }];
+    p.tmpfs = vec![TmpfsMount { guest: "/lnk/x".to_string(), ..work(LIMIT) }];
     let mut err = Vec::new();
     let linked = run_namespace(&dir, &p, &mut err).map_err(|e| e.to_string());
     let words = ns_setup_step(NS_TMPFS_LINK_STEP).unwrap();
     assert!(linked.as_ref().is_err_and(|e| e.contains(words) && e.contains("/lnk/x:size=")), "{linked:?}");
     assert!(!root.join("tmp/x").exists(), "the walk made a path through the link");
+
+    // A mode of the plan (PodUtils/podvm#692, ask 2): the root of the tmpfs
+    // has it, and the line of the mount names it.
+    let script = "test \"$(busybox stat -c %a /work)\" = 750 || exit 3; \
+         grep ' /work ' /proc/self/mountinfo | grep -q 'mode=750' || exit 4";
+    let mut p = plan(script, None);
+    p.tmpfs = vec![TmpfsMount { mode: Some(0o750), ..work(LIMIT) }];
+    let mut err = Vec::new();
+    let code = run_namespace(&dir, &p, &mut err);
+    let err = String::from_utf8_lossy(&err);
+    assert_eq!(code.map_err(|e| e.to_string()), Ok(0), "the payload with a tmpfs of mode 750 as {}: {err}", who());
 }
 
 /// A run with the tmpfs that writes a file and sleeps, then a join of it

@@ -169,10 +169,13 @@ The entries:
   (`userland::Maps::of_binds`, which a caller gives to `check_workdir`),
   and so does the path of each rule of the confinement.
 * The tmpfs mounts of a plan with a byte limit on the namespace rung
-  (`Plan::tmpfs`, a `Vec<TmpfsMount { guest, bytes }>`, `bytes` a
-  `NonZeroU64`; podvm's `--tmpfs PATH:size=N`, PodUtils/podvm#667), as
+  (`Plan::tmpfs`, a `Vec<TmpfsMount { guest, bytes, mode }>`, `bytes` a
+  `NonZeroU64`; podvm's `--tmpfs PATH:size=N`, PodUtils/podvm#667; `mode`
+  the mode of its root, at most `TMPFS_MODE_MOST` `0o7777`,
+  PodUtils/podvm#692), as
   root and through a user namespace, in their order. Before the banner
-  and the fork, the entry refuses by name (`tmpfs_label`, `GUEST:size=N`)
+  and the fork, the entry refuses by name (`tmpfs_label`, `GUEST:size=N`,
+  or `GUEST:mode=M,size=N`) a mode over `0o7777`,
   a guest path that is not an absolute normal path or is `/`, a guest
   path that two mounts give, a guest path at or under the guest path of a
   volume (the volume binds after the tmpfs mounts), and more than
@@ -181,7 +184,8 @@ The entries:
   (mode 0755; a symbolic link of the image is `NS_TMPFS_LINK_STEP` 50,
   `Class::Policy`; another refused open or make is `NS_TMPFS_POINT_STEP`
   49). Then `mount("tmpfs", /proc/self/fd/N, "tmpfs", MS_NOSUID |
-  MS_NODEV, "size=N")` (`NS_TMPFS_MOUNT_STEP` 51). A new walk crosses
+  MS_NODEV, "size=N[,mode=M]")` (`tmpfs_options`; `NS_TMPFS_MOUNT_STEP`
+  51). A new walk crosses
   into the mount and `fstatfs` reads it back (`tmpfs_enforced`): a file
   system that is not a tmpfs, or a size that is not `N` rounded up to
   whole blocks, stops the payload at `NS_TMPFS_LIMIT_STEP` 52 ("the kernel
