@@ -6,29 +6,10 @@ use std::path::{Path, PathBuf};
 
 use super::*;
 use crate::abi::{ResolveKind, resolve_dir_in, resolve_in};
-use crate::{Fds, Names, VolumeBind};
+use crate::VolumeBind;
 
 fn plan(volumes: Vec<VolumeBind>) -> Plan {
-    Plan {
-        argv: vec!["/bin/true".to_string()],
-        env: Vec::new(),
-        working_dir: "/".to_string(),
-        fds: Fds::default(),
-        banner: String::new(),
-        path_dirs: Vec::new(),
-        names: Names::DEFAULT,
-        limits: Vec::new(),
-        no_new_privs: false,
-        die_with_parent: false,
-        confine: None,
-        hostname: None,
-        volumes,
-        userns_ids: None,
-        pid_namespace: false,
-        tmpfs: Vec::new(),
-        relay_title: None,
-        read_only_root: false,
-    }
+    Plan { volumes, path_dirs: Vec::new(), ..crate::tests::plain_plan() }
 }
 
 fn text(p: &Path) -> &str {
