@@ -5,8 +5,9 @@
 #
 # It puts the tools of scripts/cloud-setup.sh on PATH ($HOME/.local/bin and
 # the bin of CARGO_HOME), and gives cargo the limits of AGENTS.md, section
-# 7, and docs/maintenance.md, "Rules of the work": 4 jobs, and no
-# incremental data (it fills the disk while agents build). A value that is
+# 7, and docs/maintenance.md, "Rules of the work": 4 jobs (fewer on a
+# host with fewer CPUs), and no incremental data (it fills the disk while
+# agents build). A value that is
 # set already stays. The Claude Code hook (.claude/session-start.sh) loads
 # it for each shell command of the session through CLAUDE_ENV_FILE.
 # shellcheck shell=sh
@@ -18,6 +19,11 @@ case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
     *) PATH=$HOME/.local/bin:$PATH ;;
 esac
-: "${CARGO_BUILD_JOBS:=4}"
+if [ -z "${CARGO_BUILD_JOBS:-}" ]; then
+    case "$(nproc 2> /dev/null)" in
+        1 | 2 | 3) CARGO_BUILD_JOBS=$(nproc) ;;
+        *) CARGO_BUILD_JOBS=4 ;;
+    esac
+fi
 : "${CARGO_INCREMENTAL:=0}"
 export PATH CARGO_BUILD_JOBS CARGO_INCREMENTAL

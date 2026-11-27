@@ -11,13 +11,14 @@
 # --dev-tools also installs the tools of the optional checks that the host
 # does not have (shellcheck for check.sh, groff and mandoc for
 # check-man.sh) with apt-get, as root or with sudo that asks for no
-# password; else it names them.
+# password (also a sudo for apt-get alone); else it names them.
 set -eu
 dev_tools=0
 targets=
 for arg in "$@"; do
     case "$arg" in
         --dev-tools) dev_tools=1 ;;
+        -h | --help) awk 'NR > 1 && !/^#/ { exit } NR > 1' "$0" | sed 's/^# \{0,1\}//' && exit 0 ;;
         -*) echo "usage: sh scripts/cloud-setup.sh [--dev-tools] [TARGET...]" >&2 && exit 64 ;;
         *) targets="$targets $arg" ;;
     esac
@@ -129,18 +130,29 @@ if [ "$dev_tools" = 1 ]; then
     for tool in shellcheck groff mandoc; do
         command -v "$tool" > /dev/null 2>&1 || missing="$missing $tool"
     done
-    sudo=
-    if [ "$(id -u)" != 0 ] && command -v sudo > /dev/null 2>&1 && sudo -n true 2> /dev/null; then
+    # sudo -E keeps DEBIAN_FRONTEND and the proxy variables that apt-get
+    # needs; a host that allows only "sudo apt-get" gets plain sudo -n.
+    sudo=none
+    if [ "$(id -u)" = 0 ]; then
+        sudo=
+    elif command -v sudo > /dev/null 2>&1 && sudo -n -E true 2> /dev/null; then
+        sudo="sudo -n -E"
+    elif command -v sudo > /dev/null 2>&1 && sudo -n apt-get --version > /dev/null 2>&1; then
         sudo="sudo -n"
     fi
     if [ -z "$missing" ]; then
         :
-    elif command -v apt-get > /dev/null 2>&1 && { [ "$(id -u)" = 0 ] || [ -n "$sudo" ]; }; then
+    elif command -v apt-get > /dev/null 2>&1 && [ "$sudo" != none ]; then
+        DEBIAN_FRONTEND=noninteractive
+        export DEBIAN_FRONTEND
+        # A failed source fails the update: the install then uses the lists
+        # that apt has.
         # $sudo and $missing are lists of words: not quoted on purpose.
-        # env after sudo: sudo drops the variables of the caller.
         # shellcheck disable=SC2086
-        bounded 300 $sudo env DEBIAN_FRONTEND=noninteractive apt-get update -qq < /dev/null &&
-            bounded 300 $sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $missing < /dev/null ||
+        bounded 300 $sudo apt-get update -qq < /dev/null ||
+            echo "cloud-setup: apt-get update failed; the install uses the lists that apt has" >&2
+        # shellcheck disable=SC2086
+        bounded 300 $sudo apt-get install -y -qq --no-install-recommends $missing < /dev/null ||
             echo "cloud-setup: apt-get did not install$missing" >&2
     else
         echo "cloud-setup: install$missing by hand (no apt-get, or no root and no sudo with no password)" >&2

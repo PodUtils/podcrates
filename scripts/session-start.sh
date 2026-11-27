@@ -32,6 +32,7 @@ run=
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --no-watchers) watchers=1 ;;
+        -h | --help) awk 'NR > 1 && !/^#/ { exit } NR > 1' "$0" | sed 's/^# \{0,1\}//' && exit 0 ;;
         --run-watcher)
             case "${2:-}" in
                 watch | runs) run=$2 ;;
@@ -58,6 +59,18 @@ bounded() {
     else
         shift
         "$@"
+    fi
+}
+
+# lock_cmd LOCK: the words that run a command under LOCK, or none with no
+# flock. flock -F (no fork) runs the command in its place: the pid of the
+# lock holder is the pid of the watcher.
+lock_cmd() {
+    command -v flock > /dev/null 2>&1 || return 0
+    if flock --help 2>&1 | grep -q -- --no-fork; then
+        echo "flock -n -F $1"
+    else
+        echo "flock -n $1"
     fi
 }
 
@@ -148,12 +161,9 @@ if [ -n "$run" ]; then
     echo "$$" > ".work/$run.pid"
     script=scripts/agent/$1
     shift
-    if command -v flock > /dev/null 2>&1 && flock --help 2>&1 | grep -q -- --no-fork; then
-        exec flock -n -F ".work/$run.lock" python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null
-    elif command -v flock > /dev/null 2>&1; then
-        exec flock -n ".work/$run.lock" python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null
-    fi
-    exec python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null
+    # The words of lock_cmd: not quoted on purpose.
+    # shellcheck disable=SC2046
+    exec $(lock_cmd ".work/$run.lock") python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null
 fi
 
 # No prompt for credentials and a limit of time: a host with no network or
@@ -206,13 +216,10 @@ start() {
         echo "session-start: $1 runs already; its log is $log"
         return 0
     fi
-    lock=
-    if command -v flock > /dev/null 2>&1; then
-        lock="flock -n .work/$name.lock"
-    fi
+    lock=$(lock_cmd ".work/$name.lock")
     script=scripts/agent/$1
     shift
-    # $lock is empty or three words: it is not quoted on purpose.
+    # $lock is empty or the words of lock_cmd: it is not quoted on purpose.
     if command -v setsid > /dev/null 2>&1; then
         # shellcheck disable=SC2086
         setsid $lock python3 -I "$script" "$@" >> "$log" 2>&1 < /dev/null 9>&- &
