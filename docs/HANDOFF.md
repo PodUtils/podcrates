@@ -63,7 +63,7 @@ is done. Git and the record keep finished work.
      open (a join keeps a dumpable child with a descriptor of the host;
      host root keeps the rights of uid 0 in `/proc/sys`; the chroot
      fallback runs uid 0 with no pivot) and three failures: the branch
-     `enter-sec2` fixes them (T-1635 and up). `main` has the version
+     `enter-sec2` fixes them. `main` has the version
      `0.87.0` and `docs/releases/v0.87.0.md`; the tag waits for
      `enter-sec2`. Then: a full check, the push, and one
      `[gh action] requested` issue with the gates and the release
