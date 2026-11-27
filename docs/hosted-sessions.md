@@ -1,13 +1,24 @@
 # Hosted sessions
 
 This page gives the start and the work of a session of podcrates in each
-harness (Claude Code, Codex, or another tool that reads `AGENTS.md`) and
-on each host (a cloud container, a local Linux or macOS machine). It also
+harness (Claude Code, Codex, Gemini / Antigravity, or another tool that
+reads `AGENTS.md`) and on each host (a cloud container, a cloud VM, a
+local Linux or macOS machine). It also
 gives the roles of the lead and its workers, and what a brief carries.
 `AGENTS.md` has priority. `docs/maintenance.md` gives the procedures of
 the work.
 
 ## Start
+
+Each harness and host runs the same start, the same watchers and the
+same checks. Only the command that starts them changes:
+
+| Harness and host | Start | The watchers | The toolchain in each shell |
+| --- | --- | --- | --- |
+| Claude Code, cloud or local | The hook `.claude/session-start.sh` | Started detached by the hook | Loaded by the hook (`CLAUDE_ENV_FILE`) |
+| Codex, cloud or local | `sh scripts/session-start.sh` | Started detached | `. ./scripts/cloud-env.sh` |
+| Gemini / Antigravity Cloud | `.agents/environment.json` at the start of the VM, else `sh scripts/session-start.sh --no-watchers` | Two daemon tasks: `sh scripts/session-start.sh --run-watcher watch` and `--run-watcher runs` | `. ./scripts/cloud-env.sh` |
+| A local Linux or macOS shell | `sh scripts/session-start.sh` | Started detached | `. ./scripts/cloud-env.sh` |
 
 Run these commands from the checkout:
 
@@ -26,16 +37,29 @@ cargo todo check
   `origin/main` does not have, stays where it is. A worktree keeps its
   branch and starts no watcher. It changes no global setting. The Claude
   Code hook `.claude/session-start.sh` runs it at each start of a session.
-  In Codex and in each other harness, run it by hand.
+  In Codex and in each other harness, run it by hand. Its flags:
+  * `--no-watchers`: the start with no watcher. It prints the two
+    commands of the daemon tasks.
+  * `--run-watcher watch` or `--run-watcher runs`: one watcher in the
+    foreground, with its lock and its log, for a daemon task of the
+    harness. When the watcher runs already, it exits 0 at once. In a
+    worktree it starts nothing.
+  * With no flag, a host that sets `ANTIGRAVITY_APP_DATA_DIR` or
+    `JULES_SESSION_ID` gets the start of `--no-watchers`.
+    `PODCRATES_NO_WATCHERS=1` skips the watchers on each host;
+    `PODCRATES_NO_WATCHERS=0` starts them detached on each host.
 * `scripts/cloud-setup.sh` makes a Linux host ready for the static
   builds: rustup (its installer, checked by SHA-256) and the toolchain of
   `rust-toolchain.toml` when the host has none, the musl target, zig for
   the machine of the host, and cargo-zigbuild. Each step that has its tool
-  already is skipped. Run it on a new host.
+  already is skipped. Run it on a new host. `--dev-tools` also installs
+  `shellcheck`, `groff` and `mandoc` when the host does not have them
+  (with `apt-get`, as root or with `sudo` that asks for no password):
+  `check.sh` and `scripts/check-man.sh` then run their optional steps.
 * `scripts/cloud-env.sh` puts the tools on `PATH` and sets
   `CARGO_BUILD_JOBS=4` and `CARGO_INCREMENTAL=0`. Load it in each new
   shell. The Claude Code hook loads it for each shell command through
-  `CLAUDE_ENV_FILE`.
+  `CLAUDE_ENV_FILE`. `scripts/agent/check.sh` loads it itself.
 
 Then read `docs/HANDOFF.md`, `TODO/PROGRESS.md`, `docs/maintenance.md`,
 `docs/design.md` and `docs/decisions.md` (`AGENTS.md`, section 8).
@@ -59,6 +83,30 @@ The facts of each host:
   the start by hand, and load `scripts/cloud-env.sh` in each shell. Use
   the permissions of the session of that harness.
 
+### Gemini / Antigravity Cloud
+
+* The host is a VM with a user that is not root. Each command starts a
+  new shell with no `CLAUDE_ENV_FILE`: load `. ./scripts/cloud-env.sh`
+  before a cargo command. `check.sh` loads it itself.
+* At the start of the VM, `.agents/environment.json` runs
+  `sh scripts/session-start.sh --no-watchers` and
+  `sh scripts/cloud-setup.sh --dev-tools`. When it did not run, run these
+  two commands by hand.
+* The host stops a process that is not a daemon task at the end of a
+  turn, and the setup of `.agents/environment.json` keeps no process.
+  Start each watcher as a daemon task of the harness (`IsDaemon: true`):
+  `sh scripts/session-start.sh --run-watcher watch` and
+  `sh scripts/session-start.sh --run-watcher runs`. When a task stops,
+  start it again.
+* The egress is not the proxy of a Claude Code cloud container. Read it
+  on the host before a live test (`AGENTS.md`, section 7).
+* When the harness has no GitHub tools, write to GitHub with `gh` when
+  `gh auth status` shows access (`docs/maintenance.md`, "A run of a
+  workflow").
+* The lead makes the worktree of each worker
+  (`git worktree add -b NAME .claude/worktrees/NAME main`) before it
+  starts the worker, and the brief names the directory.
+
 ## The watchers
 
 `scripts/agent/watch.py` (the issues, the pull requests and the COORD
@@ -74,8 +122,10 @@ ruling "Watchers"). The logs are `.work/watch.log` and `.work/runs.log`.
   one.
 * Each watcher holds its lock `.work/NAME.lock` while it runs (with
   `flock`). When a watcher stops, run `sh scripts/session-start.sh`
-  again: it starts only the watcher that does not run. When the start
-  says that a watcher did not start, read its log and start it by hand:
+  again: it starts only the watcher that does not run. On a host with
+  daemon tasks, start the task of that watcher again
+  (`--run-watcher NAME`). When the start says that a watcher did not
+  start, read its log and start it by hand:
 
   ```sh
   mkdir -p .work
@@ -118,16 +168,17 @@ ruling "Watchers"). The logs are `.work/watch.log` and `.work/runs.log`.
 
 ## Lead and workers
 
-The owner's ruling "Hosted sessions and worker roles" (`docs/decisions.md`)
-gives the model and the reasoning effort of each role in each harness.
+The owner's rulings "Hosted sessions and worker roles" and "Gemini /
+Antigravity Cloud worker roles" (`docs/decisions.md`) give the model and
+the reasoning effort of each role in each harness.
 Select them for each assignment, and give each worker a fresh brief.
 
-| Role | Assignment | Claude Code | Codex |
-| --- | --- | --- | --- |
-| Lead | Coordination, routing, review, the merge on `main`, the record, the push | The model of the session | The model of the session |
-| Implementer | Implementation, reviews and other work that needs deeper reasoning | Opus 5.5, medium or high | GPT-6.2 Sol, high or xhigh |
-| Housekeeper | Housekeeping, recon, basic fixes, QA and blind tests | Sonnet 5.5, high | GPT-6.2 Sol, medium |
-| Advisor | The hardest or apparently impossible tasks, and advice to the lead | Fable 5.2, high | GPT-6.2 Astra, high |
+| Role | Assignment | Claude Code | Codex | Gemini / Antigravity |
+| --- | --- | --- | --- | --- |
+| Lead | Coordination, routing, review, the merge on `main`, the record, the push | The model of the session | The model of the session | The model of the session |
+| Implementer | Implementation, reviews and other work that needs deeper reasoning | Opus 5.5, medium or high | GPT-6.2 Sol, high or xhigh | Neon, medium or high |
+| Housekeeper | Housekeeping, recon, basic fixes, QA and blind tests | Sonnet 5.5, high | GPT-6.2 Sol, medium | Hydrogen, medium or high |
+| Advisor | The hardest or apparently impossible tasks, and advice to the lead | Fable 5.2, high | GPT-6.2 Astra, high | Neon, the highest effort (`extra`, `xhigh` or `max`) |
 
 * The lead gives each independent task to a worker, and keeps its own
   context for the coordination. It reads code only to review it.

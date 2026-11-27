@@ -104,6 +104,16 @@ watches them.
    A watcher runs while its lock is held (`flock -n .work/NAME.lock
    true` fails). A worktree of an agent starts no watcher.
 
+   A host that stops the background processes of a turn (Gemini /
+   Antigravity Cloud) keeps a watcher only as a daemon task of the
+   harness. There, `scripts/session-start.sh --no-watchers` does the start
+   with no watcher, and each daemon task runs
+   `scripts/session-start.sh --run-watcher watch` or `--run-watcher runs`:
+   the watcher in the foreground, under the same lock and with the same
+   log (`exec flock -n -F .work/NAME.lock python3 -I ...`), exit 0 at once
+   when it runs already. `scripts/session-start.sh` of podcrates is the
+   model.
+
    `runs.py` gives one line for each run that starts or changes state,
    with each failed job and its failed steps for a red end.
    `runs.py --until SHA --min-runs N` is the gate of a push: exit 0 when
@@ -217,7 +227,7 @@ watches them.
      (`crates/pod-lab/LANES.md`): a first run, a second run that downloads
      nothing, and a cut run, each with a time limit.
 
-## Hosted sessions and worker roles (the owner's ruling, 2026-11-25)
+## Hosted sessions and worker roles (the owner's rulings, 2026-11-25 and 2026-11-27)
 
 Each repository of PodUtils keeps `docs/hosted-sessions.md`: the start of
 a session in each harness and on each host, the watchers and their logs,
@@ -225,7 +235,10 @@ and the roles of the lead and its workers. The role table of
 `docs/hosted-sessions.md` of podcrates at the tag is the table of each
 repository: the model and the reasoning effort of the lead, the
 implementer, the housekeeper and the advisor (the hardest tasks), in
-Claude Code and in Codex. Ask podcrates for a change of the table by a
+Claude Code, in Codex and in Gemini / Antigravity. `docs/hosted-sessions.md`
+of each repository has a table of each harness and host with its start
+command, and `scripts/agent/check.sh` loads `scripts/cloud-env.sh`
+itself: a harness with no `CLAUDE_ENV_FILE` gets the toolchain. Ask podcrates for a change of the table by a
 COORD issue `(to podcrates)`.
 
 Each brief of a worker carries: the rules of `AGENTS.md` (read it first),

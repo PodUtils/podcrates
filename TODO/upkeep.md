@@ -7364,3 +7364,73 @@ clippy -p pod-core -p pod-testkit --lib --tests -- -D warnings` for
 `x86_64-pc-windows-gnu` and `x86_64-apple-darwin`: clean. `pod-relay`
 does not build for Windows on this host (no C compiler for `ring`). Not
 verified: a run on Windows and macOS; the next `nightly.yml` run proves it.
+
+# T-1650: agent tooling: the start, the watchers and the role table for Gemini / Antigravity Cloud (PodUtils/podnet#799)
+
+**Source:** PodUtils/podnet#799 (COORD-141 of podnet, author COLLABORATOR, "(to podcrates)"); the owner's ruling "Gemini / Antigravity Cloud worker roles" (2026-11-27, `docs/decisions.md`)
+**Category:** chore
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+The role table of `docs/hosted-sessions.md` names Claude Code and Codex
+only. A host of Gemini / Antigravity Cloud stops each process that is not
+a daemon task at the end of a turn, its setup file
+(`.agents/environment.json`) keeps no process, and it has no
+`CLAUDE_ENV_FILE`. There, the detached watchers of
+`scripts/session-start.sh` stop, and a check in a new shell does not find
+the toolchain. The ask: the column Gemini / Antigravity of the role table,
+and the start of podnet `48770ce` (`--no-watchers`,
+`--run-watcher watch|runs`, `.agents/environment.json`, the load of
+`scripts/cloud-env.sh` in `check.sh`, the fallback to the PyYAML of
+`/usr/bin/python3`, `cloud-setup.sh --dev-tools`) if it helps.
+
+## Premise
+
+- Read: PodUtils/podnet#799; podnet `48770ce`
+  (`PodUtils/podnet:scripts/session-start.sh`,
+  `PodUtils/podnet:scripts/cloud-setup.sh`,
+  `PodUtils/podnet:scripts/agent/check.sh`,
+  `PodUtils/podnet:scripts/agent/parity-snapshot.sh`,
+  `PodUtils/podnet:.agents/environment.json`,
+  `PodUtils/podnet:docs/hosted-sessions.md`); podcrates `scripts/session-start.sh`,
+  `scripts/cloud-env.sh`, `scripts/cloud-setup.sh`,
+  `scripts/agent/check.sh`, `.claude/session-start.sh`.
+- podcrates runs its watchers from `scripts/agent/` of the checkout, not
+  from a pinned copy: no pin and no checksum to port.
+- podcrates `cloud-setup.sh` adds the musl target and zig by default: of
+  `--dev-tools`, only the tools of the optional checks are new
+  (`shellcheck` for `check.sh`, `groff` and `mandoc` for
+  `scripts/check-man.sh`).
+- Not measured: a session on a host of Gemini / Antigravity Cloud. The
+  facts of the host come from podnet's documents.
+
+## Approach
+
+`scripts/session-start.sh` takes `--no-watchers` and
+`--run-watcher watch|runs` (call C1013); with no flag the default start
+stays. `scripts/cloud-setup.sh` takes `--dev-tools`. `check.sh` loads
+`scripts/cloud-env.sh`, runs `check-workflows.py` with the python3 that
+has PyYAML, checks `sh -n` of `cloud-setup.sh`, the refusal of a bad flag
+of the start and the JSON of `.agents/environment.json`, and runs
+shellcheck on the start scripts. `.agents/environment.json` runs the
+start and the setup at the start of the VM. The documents: the column and
+the start of each harness in `docs/hosted-sessions.md`, `AGENTS.md`
+(sections 3 and 8) and `docs/session-protocol.md`.
+
+## Prove
+
+```sh
+sh -n scripts/session-start.sh && sh -n scripts/cloud-setup.sh
+sh scripts/session-start.sh --no-watchers
+timeout 20 sh scripts/session-start.sh --run-watcher runs
+python3 -I scripts/check-history.py
+cargo todo check
+```
+In a scratch clone that is not a worktree: `--no-watchers` starts no
+watcher; `--run-watcher runs` holds `.work/runs.lock` with the pid of
+`runs.py`; a second `--run-watcher runs` and the default start exit 0
+and find it.

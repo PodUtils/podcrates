@@ -93,7 +93,8 @@ everything must be statically compiled." (the owner, 2026-11-05)
   (the ruling "Comment footer", `docs/decisions.md`). Do not use the name
   of the agent in a branch, a commit or a file. The one exception is the
   role table of `docs/hosted-sessions.md`: it names the harnesses and the
-  models of the ruling "Hosted sessions and worker roles".
+  models of the rulings "Hosted sessions and worker roles" and "Gemini /
+  Antigravity Cloud worker roles".
   `.githooks/commit-msg` refuses an attribution line in a commit, and
   `ci.yml` checks the commits of each push.
 * Commit and push to `origin main` after each completed step. Push only
@@ -185,8 +186,13 @@ watchers of step 5. The Claude Code hook `.claude/session-start.sh` runs
 it. In another harness, or when the hook did not run, run
 `sh scripts/session-start.sh` from the checkout, then
 `sh scripts/cloud-setup.sh` on a new host and `. ./scripts/cloud-env.sh`
-in each shell. In a worktree it sets the identity, the hooks path and the
-merge driver only: the lead checkout runs the watchers.
+in each shell. On a host that stops the background processes of a turn
+(Gemini / Antigravity Cloud), run
+`sh scripts/session-start.sh --no-watchers`, and run each watcher as a
+daemon task of the harness: `sh scripts/session-start.sh --run-watcher watch`
+and `sh scripts/session-start.sh --run-watcher runs`. In a worktree, the
+start sets the identity, the hooks path and the merge driver only: the
+lead checkout runs the watchers.
 `docs/hosted-sessions.md` gives the start on each host, the watchers, and
 the roles and briefs of the lead and its workers.
 
