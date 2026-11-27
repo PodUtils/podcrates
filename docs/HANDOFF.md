@@ -61,7 +61,7 @@ is done. Git and the record keep finished work.
      the role column of Gemini / Antigravity Cloud, `--no-watchers`,
      `--run-watcher`, `.agents/environment.json`, `--dev-tools`; T-1651
      (a pinned actionlint) is open. Answer #799 with the next tag.
-   - Not read yet (the owner put podnet and podssh after
+   - Not read (on 2026-11-27 the owner put podnet and podssh after
      podrunner and podvm): PodUtils/podssh#368 (COORD-155) and each new
      issue `(to podcrates)` of podnet and podssh. Map each one.
    - Open asks:
