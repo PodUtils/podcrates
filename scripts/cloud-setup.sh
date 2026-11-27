@@ -4,11 +4,27 @@
 # cargo-zigbuild. Each step is skipped when its tool is there. The versions
 # of zig and cargo-zigbuild are the ones of the CI workflows.
 #
-#   sh scripts/cloud-setup.sh [TARGET...]
+#   sh scripts/cloud-setup.sh [--dev-tools] [TARGET...]
 #
 # With no TARGET, it adds x86_64-unknown-linux-musl. A new shell finds
 # cargo, rustup, zig and cargo-zigbuild with `. ./scripts/cloud-env.sh`.
+# --dev-tools also installs the tools of the optional checks that the host
+# does not have (shellcheck for check.sh, groff and mandoc for
+# check-man.sh) with apt-get, as root or with sudo that asks for no
+# password; else it names them.
 set -eu
+dev_tools=0
+targets=
+for arg in "$@"; do
+    case "$arg" in
+        --dev-tools) dev_tools=1 ;;
+        -*) echo "usage: sh scripts/cloud-setup.sh [--dev-tools] [TARGET...]" >&2 && exit 64 ;;
+        *) targets="$targets $arg" ;;
+    esac
+done
+# A target name has no space: the split is safe.
+# shellcheck disable=SC2086
+set -- $targets
 here=$(cd "$(dirname "$0")" && pwd)
 # rustup reads rust-toolchain.toml in the directory of the command.
 cd "$here/.."
@@ -106,6 +122,28 @@ if ! cargo-zigbuild --version > /dev/null 2>&1; then
         ln -sf "$tools/bin/cargo-zigbuild" "$HOME/.local/bin/cargo-zigbuild"
     else
         cargo install --locked --quiet cargo-zigbuild --version "$ZIGBUILD_VERSION"
+    fi
+fi
+if [ "$dev_tools" = 1 ]; then
+    missing=
+    for tool in shellcheck groff mandoc; do
+        command -v "$tool" > /dev/null 2>&1 || missing="$missing $tool"
+    done
+    sudo=
+    if [ "$(id -u)" != 0 ] && command -v sudo > /dev/null 2>&1 && sudo -n true 2> /dev/null; then
+        sudo="sudo -n"
+    fi
+    if [ -z "$missing" ]; then
+        :
+    elif command -v apt-get > /dev/null 2>&1 && { [ "$(id -u)" = 0 ] || [ -n "$sudo" ]; }; then
+        # $sudo and $missing are lists of words: not quoted on purpose.
+        # env after sudo: sudo drops the variables of the caller.
+        # shellcheck disable=SC2086
+        bounded 300 $sudo env DEBIAN_FRONTEND=noninteractive apt-get update -qq < /dev/null &&
+            bounded 300 $sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $missing < /dev/null ||
+            echo "cloud-setup: apt-get did not install$missing" >&2
+    else
+        echo "cloud-setup: install$missing by hand (no apt-get, or no root and no sudo with no password)" >&2
     fi
 fi
 echo "cloud-setup: ready ($(zig version 2> /dev/null || echo 'zig not on PATH: add $HOME/.local/bin'))"

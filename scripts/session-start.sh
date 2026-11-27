@@ -6,7 +6,8 @@
 # (.claude/session-start.sh) runs it; another harness or a person runs it
 # from the checkout:
 #
-#   sh scripts/session-start.sh
+#   sh scripts/session-start.sh [--no-watchers]
+#   sh scripts/session-start.sh --run-watcher watch|runs
 #
 # It changes no global setting. It drops no commit: an existing main is
 # checked out as it is and only fast-forwarded to origin/main; a new main
@@ -15,7 +16,37 @@
 # .claude/worktrees/ keeps its branch and starts no watcher: the lead
 # checkout owns the watchers. Exit 0 when both watchers run, 1 when one did
 # not start.
+#
+# A host that stops the background processes of a turn (Gemini /
+# Antigravity Cloud) keeps a watcher only as a daemon task of the harness.
+# There, --no-watchers does the start with no watcher, and each daemon task
+# runs --run-watcher NAME: the watcher in the foreground, under its lock,
+# with its log (exit 0 at once when it runs already). With no flag, the
+# start skips the watchers on such a host and prints the two commands.
+# PODCRATES_NO_WATCHERS=1 skips them on each host; 0 starts them on each
+# host.
 set -u
+usage="usage: sh scripts/session-start.sh [--no-watchers | --run-watcher watch|runs]"
+watchers=${PODCRATES_NO_WATCHERS:-auto}
+run=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --no-watchers) watchers=1 ;;
+        --run-watcher)
+            case "${2:-}" in
+                watch | runs) run=$2 ;;
+                *) echo "$usage" >&2 && exit 64 ;;
+            esac
+            shift
+            ;;
+        *) echo "$usage" >&2 && exit 64 ;;
+    esac
+    shift
+done
+case "$watchers" in
+    auto | 0 | 1) ;;
+    *) echo "session-start: PODCRATES_NO_WATCHERS is auto, 0 or 1" >&2 && exit 64 ;;
+esac
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd -P) || exit 1
 cd "$root" || exit 1
 git rev-parse --is-inside-work-tree > /dev/null 2>&1 || exit 0
@@ -28,6 +59,41 @@ bounded() {
         shift
         "$@"
     fi
+}
+
+# The command line of a process: /proc on Linux, else ps.
+cmdline() {
+    if [ -r "/proc/$1/cmdline" ]; then
+        tr '\0' ' ' < "/proc/$1/cmdline" | sed 's/ $//'
+    else
+        ps -o args= -p "$1" 2> /dev/null
+    fi
+}
+
+# A watcher runs when it holds its lock .work/NAME.lock (flock), or when a
+# process has its exact command line and, where /proc tells it, this
+# checkout as its directory (a host with no flock, or a watcher that a
+# person started by hand with the same command).
+running() {
+    lock=.work/${1%.py}.lock
+    if command -v flock > /dev/null 2>&1 && [ -e "$lock" ] && ! flock -n "$lock" true 2> /dev/null; then
+        return 0
+    fi
+    want="python3 -I scripts/agent/$*"
+    pidfile=.work/${1%.py}.pid
+    pids=$(cat "$pidfile" 2> /dev/null)
+    if command -v pgrep > /dev/null 2>&1; then
+        pids="$pids $(pgrep -f -x "$want" 2> /dev/null)"
+    fi
+    for pid in $pids; do
+        [ "$(cmdline "$pid")" = "$want" ] || continue
+        if [ -e "/proc/$pid/cwd" ] && [ "$(readlink "/proc/$pid/cwd")" != "$root" ]; then
+            continue
+        fi
+        echo "$pid" > "$pidfile"
+        return 0
+    done
+    return 1
 }
 
 git config --local user.name Azathothas
@@ -50,6 +116,42 @@ common_dir=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
 if [ "$git_dir" != "$common_dir" ]; then
     echo "session-start: a worktree keeps its branch; the lead checkout runs the watchers"
     exit 0
+fi
+
+# The arguments of each watcher, the same in each mode: running() finds a
+# watcher by this command line.
+watcher_args() {
+    case "$1" in
+        watch) echo "watch.py podcrates --state .work/agent" ;;
+        runs) echo "runs.py --repo PodUtils/podcrates" ;;
+    esac
+}
+
+# --run-watcher NAME: the watcher in the foreground of a daemon task. With
+# exec, the task is the watcher (flock -F does not fork), so the task ends
+# when the watcher ends and stops it when the host stops the task.
+if [ -n "$run" ]; then
+    umask 077
+    mkdir -p .work || exit 1
+    # shellcheck disable=SC2046
+    set -- $(watcher_args "$run")
+    log=.work/$run.log
+    if running "$@"; then
+        echo "session-start: $1 runs already; its log is $log"
+        exit 0
+    fi
+    if ! bounded 60 python3 -I "scripts/agent/$1" --self-test > ".work/$run-self-test.log" 2>&1 < /dev/null; then
+        echo "session-start: $1 failed its self-test (.work/$run-self-test.log); it was not started" >&2
+        exit 1
+    fi
+    echo "session-start: $1 runs in the foreground; its log is $log"
+    echo "$$" > ".work/$run.pid"
+    if command -v flock > /dev/null 2>&1 && flock --help 2>&1 | grep -q -- --no-fork; then
+        exec flock -n -F ".work/$run.lock" python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null
+    elif command -v flock > /dev/null 2>&1; then
+        exec flock -n ".work/$run.lock" python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null
+    fi
+    exec python3 -I "scripts/agent/$@" >> "$log" 2>&1 < /dev/null
 fi
 
 # No prompt for credentials and a limit of time: a host with no network or
@@ -92,41 +194,6 @@ if command -v flock > /dev/null 2>&1; then
     }
 fi
 
-# The command line of a process: /proc on Linux, else ps.
-cmdline() {
-    if [ -r "/proc/$1/cmdline" ]; then
-        tr '\0' ' ' < "/proc/$1/cmdline" | sed 's/ $//'
-    else
-        ps -o args= -p "$1" 2> /dev/null
-    fi
-}
-
-# A watcher runs when it holds its lock .work/NAME.lock (flock), or when a
-# process has its exact command line and, where /proc tells it, this
-# checkout as its directory (a host with no flock, or a watcher that a
-# person started by hand with the same command).
-running() {
-    lock=.work/${1%.py}.lock
-    if command -v flock > /dev/null 2>&1 && [ -e "$lock" ] && ! flock -n "$lock" true 2> /dev/null; then
-        return 0
-    fi
-    want="python3 -I scripts/agent/$*"
-    pidfile=.work/${1%.py}.pid
-    pids=$(cat "$pidfile" 2> /dev/null)
-    if command -v pgrep > /dev/null 2>&1; then
-        pids="$pids $(pgrep -f -x "$want" 2> /dev/null)"
-    fi
-    for pid in $pids; do
-        [ "$(cmdline "$pid")" = "$want" ] || continue
-        if [ -e "/proc/$pid/cwd" ] && [ "$(readlink "/proc/$pid/cwd")" != "$root" ]; then
-            continue
-        fi
-        echo "$pid" > "$pidfile"
-        return 0
-    done
-    return 1
-}
-
 # start NAME ARGS...: scripts/agent/NAME ARGS..., detached from the session
 # and with its log .work/NAME.log, unless it runs already. With flock, the
 # watcher holds .work/NAME.lock while it runs.
@@ -167,8 +234,20 @@ if ! bounded 60 python3 -I scripts/agent/watch.py --self-test > .work/watchers-s
     exit 1
 fi
 status=0
-start watch.py podcrates --state .work/agent || status=1
-start runs.py --repo PodUtils/podcrates || status=1
+# A host of Gemini / Antigravity Cloud sets one of these variables.
+if [ "$watchers" = auto ] && [ -n "${ANTIGRAVITY_APP_DATA_DIR:-}${JULES_SESSION_ID:-}" ]; then
+    watchers=1
+fi
+if [ "$watchers" = 1 ]; then
+    echo "session-start: no watcher was started; run each one as a daemon task of the harness:"
+    echo "session-start:   sh scripts/session-start.sh --run-watcher watch"
+    echo "session-start:   sh scripts/session-start.sh --run-watcher runs"
+else
+    # shellcheck disable=SC2046
+    start $(watcher_args watch) || status=1
+    # shellcheck disable=SC2046
+    start $(watcher_args runs) || status=1
+fi
 # The host: the free disk (a full check needs 22 GB, AGENTS.md, section 7)
 # and the tools of the static builds.
 free=$(df -Pk . 2> /dev/null | awk 'NR == 2 { print int($4 / 1048576) }')

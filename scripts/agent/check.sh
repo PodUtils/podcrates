@@ -26,14 +26,28 @@
 # (scripts/agent/stale_target.py, T-1384): a worktree of an agent can
 # leave artifacts in a shared target that cargo takes as fresh. It also
 # checks the merge driver of the record (scripts/agent/merge_todo.py), the
-# commit messages since origin/main (.githooks/commit-msg) and the session
-# start (sh -n). A run that passes writes the tree that it checked into
+# commit messages since origin/main (.githooks/commit-msg), the session
+# start and the setup (sh -n, the refusal of a bad flag, and the JSON of
+# .agents/environment.json). It loads scripts/cloud-env.sh itself. A run
+# that passes writes the tree that it checked into
 # .work/agent/checked-trees (a full run) or .work/agent/linted-trees
 # (notest): .githooks/pre-push refuses a push of another tree.
 #
 #   sh scripts/agent/check.sh [notest]
 set -u
 cd "$(dirname "$0")/../.." || exit 1
+# The toolchain and the cargo limits in a harness that does not load
+# cloud-env.sh in each shell (no CLAUDE_ENV_FILE). A value that is set
+# already stays.
+# shellcheck source=scripts/cloud-env.sh
+. ./scripts/cloud-env.sh
+# check-workflows.py needs PyYAML: the python3 of the system has it on
+# some hosts where the python3 of PATH does not.
+yaml_py=python3
+if ! python3 -I -c 'import yaml' > /dev/null 2>&1 && [ -x /usr/bin/python3 ] &&
+    /usr/bin/python3 -I -c 'import yaml' > /dev/null 2>&1; then
+    yaml_py=/usr/bin/python3
+fi
 # The file creation mask of CI: a test of the mode of a file it makes
 # gives the same result here.
 umask 022
@@ -70,7 +84,7 @@ cargo run -q -p pod-todo -- check > "$log/record.log" 2>&1; r=$?
 echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 { python3 -I scripts/check-size.py && python3 -I scripts/check-size.py --self-test; } > "$log/size.log" 2>&1; s=$?
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
-{ python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py && python3 -I scripts/check-workflows.py &&
+{ python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py && "$yaml_py" -I scripts/check-workflows.py &&
     python3 -I scripts/check-probe.py && python3 -I scripts/check-loopback.py &&
     python3 -I scripts/check-vendor.py && python3 -I scripts/check-vendor.py --self-test &&
     python3 -I scripts/check-private-replace.py && python3 -I scripts/check-results.py &&
@@ -82,6 +96,8 @@ echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/siz
     sh .githooks/commit-msg --self-test &&
     { ! git rev-parse -q --verify origin/main > /dev/null || sh .githooks/commit-msg --range origin/main..HEAD; } &&
     sh -n scripts/session-start.sh && sh -n .claude/session-start.sh && sh -n scripts/cloud-env.sh &&
+    sh -n scripts/cloud-setup.sh && python3 -I -m json.tool .agents/environment.json > /dev/null &&
+    { sh scripts/session-start.sh --bad-flag 2> /dev/null; [ "$?" -eq 64 ]; } &&
     sh -n scripts/qa-bundle.sh && sh -n .githooks/pre-push &&
     python3 -I scripts/codegraph.py dups && python3 -I scripts/codegraph.py --self-test &&
     sh scripts/plant-each.sh --apply; } > "$log/paths.log" 2>&1; p=$?
