@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1096 entries: 174 open, 33 partial, 6 blocked, 883 done.**
+**1096 entries: 174 open, 31 partial, 6 blocked, 885 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 11 | 0 | 248 | 263 |
+| P1 | 4 | 9 | 0 | 250 | 263 |
 | P2 | 73 | 12 | 4 | 474 | 563 |
 | P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 33 | 6 | 883 | 1096 |
+| **All** | 174 | 31 | 6 | 885 | 1096 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1141,5 +1141,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1530](fleet.md) | P1 | M | M8 | feature | done | `pod-testkit`: `container:` and `services:` jobs and the step logs of a job in the fake of GitHub (PodUtils/podrunner#373) |
 | [T-1531](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: a parser of a Trojan request on the accept side (PodUtils/podnet#785, ask 1) |
 | [T-1532](roads.md) | P3 | S | M4 | feature | done | `pod-egress`: the accept-side API of Shadowsocks: `Decoder::salt` and the docs of `parse_address` and `Decoder::new` (PodUtils/podnet#785, ask 2) |
-| [T-1560](podvm.md) | P1 | M | M6 | defect | partial | `pod-enter`: the namespace rung enters the tree with `pivot_root`, and the payload of uid 0 gets a nested user and mount namespace, so it cannot leave the tree or remount a `:ro` volume (PodUtils/podvm#695, asks 1 to 4) |
-| [T-1561](podvm.md) | P1 | S | M6 | feature | partial | `pod-enter`: `Plan::read_only_root`, a read-only root of the namespace rung (PodUtils/podvm#695, ask 5) |
+| [T-1560](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: the namespace rung enters the tree with `pivot_root`, and the payload of uid 0 gets a nested user and mount namespace, so it cannot leave the tree or remount a `:ro` volume (PodUtils/podvm#695, asks 1 to 4) |
+| [T-1561](podvm.md) | P1 | S | M6 | feature | done | `pod-enter`: `Plan::read_only_root`, a read-only root of the namespace rung (PodUtils/podvm#695, ask 5) |
