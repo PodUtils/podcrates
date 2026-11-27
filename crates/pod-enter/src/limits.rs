@@ -3,7 +3,7 @@
 //! payload and no other process. A limit such as `fsize` set in the caller
 //! would limit the caller's own writes, and `no_new_privs` cannot be undone.
 
-use pod_hostprobe::sys::rlimit;
+use pod_hostprobe::sys::{self, Errno, rlimit};
 
 /// A resource of `setrlimit(2)`, by the name of docker's `--ulimit`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,6 +97,32 @@ pub fn repeated(limits: &[Limit]) -> Option<Resource> {
         .enumerate()
         .find(|(at, l)| limits[..*at].iter().any(|e| e.resource == l.resource))
         .map(|(_, l)| l.resource)
+}
+
+/// In the child, first: raise each hard value of `limits` (resource, soft,
+/// hard) that is over the current one, and keep the current soft value
+/// (T-1638). A raise needs `CAP_SYS_RESOURCE` of the initial user
+/// namespace, which a join and the lock of host root take away; the final
+/// values come before the exec ([`apply`]). `Err` gives the errno and the
+/// index of the limit. Async-signal-safe.
+pub(crate) fn raise_hard(limits: &[(u64, u64, u64)]) -> Result<(), (Errno, u8)> {
+    for (at, &(resource, _, hard)) in limits.iter().enumerate() {
+        let (soft_now, hard_now) = sys::prlimit(resource).map_err(|e| (e, at as u8))?;
+        if hard > hard_now {
+            sys::set_rlimit(resource, soft_now, hard).map_err(|e| (e, at as u8))?;
+        }
+    }
+    Ok(())
+}
+
+/// In the child, after the root change and the `chdir`, before the exec:
+/// each limit. `Err` gives the errno and the index of the limit.
+/// Async-signal-safe.
+pub(crate) fn apply(limits: &[(u64, u64, u64)]) -> Result<(), (Errno, u8)> {
+    for (at, &(resource, soft, hard)) in limits.iter().enumerate() {
+        sys::set_rlimit(resource, soft, hard).map_err(|e| (e, at as u8))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

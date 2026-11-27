@@ -92,10 +92,19 @@ impl Join {
         }
     }
 
-    /// In the child, first after the death signal: the owner of the mount
-    /// namespace where it is another one, then one call: a pidfd with
-    /// several flags joins all of them, or none. Async-signal-safe.
+    /// In the child, first after the death signal: not dumpable, then the
+    /// owner of the mount namespace where it is another one, then one call:
+    /// a pidfd with several flags joins all of them, or none.
+    /// Async-signal-safe.
+    ///
+    /// The child holds the descriptors of the caller (the root of the
+    /// entry is a directory of the mount namespace of the caller) until
+    /// its `execve`. After the join the payload of the run holds each
+    /// capability of the child in its user namespace: only the dumpable
+    /// flag keeps it out of `/proc/PID/fd` of the child. The `execve` of
+    /// the payload sets the flag again.
     pub(crate) fn enter(&self) -> std::result::Result<(), (u8, Errno)> {
+        sys::set_dumpable(false).map_err(|e| (self.step(), e))?;
         if let Some(owner) = self.owner {
             sys::setns(owner, sys::CLONE_NEWUSER).map_err(|e| (NS_JOIN_OWNER_STEP, e))?;
         }

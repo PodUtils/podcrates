@@ -10,12 +10,16 @@
 //! the root of the image. A `chroot(2)` of the tree would keep the host's
 //! `/` under it. A refused bind or pivot is a setup step of the rung.
 //!
-//! With [`Plan::read_only_root`], `/dev` of the tree gets a bind onto
-//! itself first, so it stays writable (docker's `/dev` is a tmpfs), and
+//! With [`Plan::read_only_root`], the bind of the root is not recursive (a
+//! mount under the tree would stay writable under a read-only root), `/dev`
+//! of the tree gets a tmpfs of its own (`ns_devfs`, docker's `/dev`), and
 //! after the mounts the root mount is remounted read-only with each flag
 //! that a user namespace locks ([`crate::volume_remount_flags`]). The
 //! mounts on top keep their own flags. A refusal stops the payload: it
 //! never runs on a writable root.
+//!
+//! The masks of `/proc` for a payload of kuid 0 (`ns_mask`) and the `/tmp`
+//! of the image as a mount point name their refusals here too.
 
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf, Errno};
@@ -30,15 +34,18 @@ pub const NS_PIVOT_STEP: u8 = 54;
 pub const NS_OLD_ROOT_STEP: u8 = 55;
 /// The read-only remount of the root, and its check.
 pub const NS_READ_ONLY_STEP: u8 = 56;
-/// The bind of `/dev` of the tree onto itself, for a read-only root.
+/// The tmpfs on `/dev` of the tree, for a read-only root (`ns_devfs`).
 pub const NS_DEV_KEEP_STEP: u8 = 57;
+/// The `/tmp` of the image as a mount point: a link or a file there.
+pub const NS_TMP_POINT_STEP: u8 = 71;
 
 /// The root mount of one fork, built before it.
 pub(crate) struct RootMount {
     path: CBuf,
-    /// `/dev` of the tree, where the root is read-only and the tree holds
-    /// a directory there.
-    dev: Option<CBuf>,
+    /// The tmpfs of `/dev`, where the root is read-only.
+    dev: Option<crate::ns_devfs::DevFs>,
+    /// The masks of `/proc` for a payload of kuid 0.
+    mask: crate::ns_mask::ProcMask,
     read_only: bool,
     empty: CBuf,
     dot: CBuf,
@@ -71,22 +78,32 @@ impl RootMount {
     pub(crate) fn of(plan: &Plan, root: &RootDir) -> Result<RootMount> {
         let path =
             CBuf::new(&root.path).ok_or_else(|| Error::runtime(Class::Usage, "the root path contains a NUL byte"))?;
-        let dev = plan.read_only_root.then(|| crate::entry::ns_dir_target(&root.path, "dev")).flatten();
-        let dev = dev.and_then(|d| CBuf::new(&d));
+        let dev = plan.read_only_root.then(|| crate::ns_devfs::DevFs::of(root, &plan.names));
+        let mask = crate::ns_mask::ProcMask::of(&root.path);
         let lit = |s: &str| CBuf::new(s).expect("a literal");
-        Ok(RootMount { path, dev, read_only: plan.read_only_root, empty: sys::cempty(), dot: lit(".") })
+        Ok(RootMount { path, dev, mask, read_only: plan.read_only_root, empty: sys::cempty(), dot: lit(".") })
     }
 
     /// In the child, right after `/` is private (and the overlay, where
-    /// `overlay`): the bind of the root onto itself, then the bind of
+    /// `overlay`): the bind of the root onto itself, then the tmpfs of
     /// `/dev` for a read-only root. Async-signal-safe.
-    pub(crate) fn bind(&self, overlay: bool) -> std::result::Result<(), (u8, Errno)> {
+    pub(crate) fn bind(&self, overlay: bool) -> std::result::Result<(), (u8, Errno, u8)> {
         if !overlay {
-            sys::mount(&self.path, &self.path, &self.empty, sys::MS_BIND | sys::MS_REC)
-                .map_err(|e| (NS_ROOT_BIND_STEP, e))?;
+            // Not recursive for a read-only root: its remount is not.
+            let rec = if self.read_only { 0 } else { sys::MS_REC };
+            sys::mount(&self.path, &self.path, &self.empty, sys::MS_BIND | rec)
+                .map_err(|e| (NS_ROOT_BIND_STEP, e, 0))?;
         }
-        if let Some(dev) = &self.dev {
-            sys::mount(dev, dev, &self.empty, sys::MS_BIND | sys::MS_REC).map_err(|e| (NS_DEV_KEEP_STEP, e))?;
+        self.dev.as_ref().map_or(Ok(()), crate::ns_devfs::DevFs::mount)
+    }
+
+    /// In the child, after the optional mounts: the masks of `/proc`, and
+    /// the devices of the tmpfs of `/dev` where no user namespace of the
+    /// rung binds them (`user`: one does). Async-signal-safe.
+    pub(crate) fn after_optional(&self, user: bool) -> std::result::Result<(), (u8, Errno, u8)> {
+        self.mask.apply()?;
+        if let Some(dev) = self.dev.as_ref().filter(|_| !user) {
+            dev.bind_devices();
         }
         Ok(())
     }
@@ -128,20 +145,38 @@ impl RootMount {
 /// step. These steps never fall back: the payload does not run on a
 /// writable root.
 pub(crate) fn failure(byte: u8, errno: Errno, at: u8) -> Option<Error> {
-    let step = match byte {
-        NS_READ_ONLY_STEP => "remounting the root read-only",
-        NS_DEV_KEEP_STEP => "binding /dev of the root onto itself",
+    let failed = |what: &str| format!("{what} failed with {} ({})", errno.name(), errno.0);
+    let text = match byte {
+        NS_READ_ONLY_STEP if at == 1 => {
+            "the read-only root of the plan: the root does not read as read-only after its read-only remount"
+                .to_string()
+        }
+        NS_READ_ONLY_STEP => format!("the read-only root of the plan: {}", failed("remounting the root read-only")),
+        NS_DEV_KEEP_STEP => format!("the read-only root of the plan: {}", failed(dev_part(at))),
+        crate::ns_mask::NS_PROC_MASK_STEP => {
+            let name =
+                crate::ns_mask::PROC_READ_ONLY.iter().chain(crate::ns_mask::PROC_MASKED.iter()).nth(usize::from(at));
+            failed(&format!("the mask of /proc/{} for a payload of uid 0 of the host", name.unwrap_or(&"?")))
+        }
+        NS_TMP_POINT_STEP => format!(
+            "the /tmp of the image is not a directory, and the entry does not fall back to chroot: {}",
+            failed("opening it with no link followed")
+        ),
         _ => return None,
     };
-    let text = if at == 1 && byte == NS_READ_ONLY_STEP {
-        "the root does not read as read-only after its read-only remount".to_string()
-    } else {
-        format!("{step} failed with {} ({})", errno.name(), errno.0)
-    };
-    Some(Error::runtime(
-        crate::errno_class(errno),
-        format!("the read-only root of the plan: {text}; the payload did not run"),
-    ))
+    Some(Error::runtime(crate::errno_class(errno), format!("{text}; the payload did not run")))
+}
+
+/// The part of the tmpfs of `/dev` that the byte `at` of a refusal names
+/// (`ns_devfs::DevFs::mount`).
+fn dev_part(at: u8) -> &'static str {
+    match at {
+        1 => "opening /dev of the root with no link followed",
+        2 => "mounting the tmpfs on /dev",
+        3 => "making /dev/pts",
+        4 => "mounting the tmpfs on /dev/shm",
+        _ => "making the links of /dev",
+    }
 }
 
 #[cfg(test)]

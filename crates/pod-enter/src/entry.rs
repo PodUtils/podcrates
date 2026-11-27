@@ -303,10 +303,12 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
 /// The child makes a mount namespace (in a user namespace of its own where
 /// the caller has no `CAP_SYS_ADMIN`: `ns_user`), mounts `/` again as recursively
 /// private so that its mounts cannot reach the host, mounts its private
-/// tmpfs on the `/tmp` of the image, and then does the chroot sequence. A
-/// failure of the setup stops the namespace rung, and the entry enters
-/// chroot and names the fallback: a host that lost a leg between the probe
-/// and the entry still runs what the chroot rung can carry.
+/// tmpfs on the `/tmp` of the image (made where it is missing), and then
+/// pivots into the root. A failure of the setup stops the namespace rung,
+/// and the entry enters chroot and names the fallback: a host that lost a
+/// leg between the probe and the entry still runs what the chroot rung can
+/// carry. A payload of uid 0 refuses the fallback, as a plan with a mount
+/// does.
 pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<Child> {
     namespace_entry(root, plan, true, err)
 }
@@ -335,12 +337,33 @@ pub(crate) fn namespace_entry(root: &RootDir, plan: &Plan, banner: bool, err: &m
         if let Some(mount) = crate::ns_volume::first_mount(plan) {
             return Err(Error::runtime(Class::Unsupported, format!("{mount} needs the namespace rung, and {cause}")));
         }
+        // Nor a payload of uid 0: with no pivot and no lock it leaves the
+        // tree by the way out of a `chroot(2)` (T-1637).
+        if crate::ns_lock::chroot_payload_is_root(plan)? {
+            return Err(Error::runtime(
+                Class::Unsupported,
+                format!(
+                    "a payload of uid 0 needs the pivot and the lock of the namespace rung, and {cause}; it does not \
+                     run on the chroot rung"
+                ),
+            ));
+        }
         let _ = writeln!(err, "{}", ns_fallback_line(names, cause));
         spawn_with(root, plan, ENTERED_RUNG.word(), None, None, None, None, banner, err)
     };
-    let Some(target) = ns_tmp_target(&root.path) else {
-        return chroot(err, &format!("the image holds no /tmp mount point under {}", root.path), banner);
-    };
+    // The child makes a missing `/tmp` (T-1637): the image does not choose
+    // the rung. A link or a file there is a refusal, never a fallback.
+    let target = format!("{}/tmp", root.path.trim_end_matches('/'));
+    if std::fs::symlink_metadata(&target).is_ok_and(|m| !m.is_dir()) {
+        return Err(Error::runtime(
+            Class::Unsupported,
+            format!(
+                "the /tmp of the image under {} is a symbolic link or a file: the namespace rung mounts its tmpfs on \
+                 a directory there, and the entry does not fall back to chroot",
+                root.path
+            ),
+        ));
+    }
     let Some(target) = CBuf::new(&target) else {
         return chroot(err, "the /tmp mount point contains a NUL byte", banner);
     };

@@ -16,6 +16,32 @@ pub const CANNOT_INVOKE: i32 = 126;
 /// that reads 127 can try another path.
 pub const NOT_FOUND: i32 = 127;
 
+/// `execve` of each candidate in its order, as `execvp`: a file that was
+/// found and refused is the answer, also when a later path is absent, and
+/// only `EACCES` lets the search go on. Returns only where each failed: the
+/// errno to report. Async-signal-safe.
+///
+/// # Safety
+/// `argv` and `envp` are arrays of C strings that end with a null pointer.
+pub(crate) unsafe fn exec_each(candidates: &[sys::CBuf], argv: *const *const u8, envp: *const *const u8) -> sys::Errno {
+    let mut last = sys::ENOENT;
+    let mut refused = None;
+    for c in candidates {
+        // SAFETY: the caller gives the two arrays.
+        if let Err(e) = unsafe { sys::execve(c, argv, envp) } {
+            if e.exec_refused() {
+                refused = Some(e);
+                if e != sys::EACCES {
+                    break;
+                }
+            } else {
+                last = e;
+            }
+        }
+    }
+    refused.unwrap_or(last)
+}
+
 /// docker's translation of a wait status into an exit code.
 ///
 /// A payload that a signal ended exits `128 + signal`, which is the rule

@@ -20,6 +20,11 @@ use super::{
 /// The four numbers are the same on each Linux architecture.
 pub const SIGHUP: u64 = g::SIGHUP as u64;
 pub const SIGQUIT: u64 = g::SIGQUIT as u64;
+/// The signal of a write to a pipe with no reader, and the stop and the
+/// continue of a process. The numbers differ by architecture.
+pub const SIGPIPE: u64 = g::SIGPIPE as u64;
+pub const SIGSTOP: u64 = g::SIGSTOP as u64;
+pub const SIGCONT: u64 = g::SIGCONT as u64;
 
 /// `rt_sigprocmask` "block these" and "set to this". mips and sparc give
 /// 1 and 3, the other architectures 0 and 2.

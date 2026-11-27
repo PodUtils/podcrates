@@ -1,7 +1,10 @@
 //! The payload: each argument is `OP:PATH`, and the payload writes
 //! `OP:PATH=RESULT` for each (0 or a number, or the negative errno) in one
 //! line to its standard output, then reads its standard input to the end,
-//! so that a join can find it while it runs.
+//! so that a join can find it while it runs. With `peek:PATH`, each line
+//! of its standard input is a pid: the payload walks to `PATH` from each
+//! descriptor and from the working directory of that process, and writes
+//! `PID=RESULT` ([`peek`]).
 
 use std::os::unix::fs::MetadataExt;
 
@@ -39,6 +42,21 @@ fn escape(marker: &str) -> i64 {
     k::stat(&c(marker)).map_or_else(|e| -i64::from(e.0), |_| 0)
 }
 
+/// The way out through a process `pid` of the host (T-1635): `PATH`
+/// relative to each directory that the process holds (a descriptor, its
+/// working directory). 1 where a walk reaches `path`, 0 where none does,
+/// or the negative errno of the open of `/proc/PID/fd`.
+fn peek(pid: &str, path: &str) -> i64 {
+    let fds = match std::fs::read_dir(format!("/proc/{pid}/fd")) {
+        Ok(d) => d,
+        Err(e) => return -i64::from(e.raw_os_error().unwrap_or(1000)),
+    };
+    let mut dirs: Vec<String> =
+        fds.flatten().map(|e| format!("/proc/{pid}/fd/{}", e.file_name().to_string_lossy())).collect();
+    dirs.push(format!("/proc/{pid}/cwd"));
+    i64::from(dirs.iter().any(|d| std::fs::metadata(format!("{d}/{path}")).is_ok()))
+}
+
 /// One operation.
 fn op(op: &str, path: &str) -> i64 {
     let (empty, p) = (k::cempty(), c(path));
@@ -50,6 +68,11 @@ fn op(op: &str, path: &str) -> i64 {
         "umount" => code(k::umount(&p)),
         "write" => code(k::open(&p, k::O_CREAT | k::O_WRONLY | k::O_CLOEXEC, 0o644)),
         "escape" => escape(path),
+        // 1 where the path is a character device, else 0.
+        "chr" => k::stat(&p).map_or_else(|e| -i64::from(e.0), |st| i64::from(st.st_mode & 0o170000 == 0o020000)),
+        // The hard limit of a resource of `setrlimit(2)`, by its number.
+        "hard" => path.parse().ok().and_then(|r| k::prlimit(r).ok()).map_or(-1, |(_, h)| h as i64),
+        "peek" => 0,
         // The inode of a namespace of this process.
         "ns" => std::fs::metadata(format!("/proc/self/ns/{path}")).map_or(-1, |m| m.ino() as i64),
         _ => -1000,
@@ -66,7 +89,16 @@ pub fn main(args: &[String]) -> i32 {
         line.push_str(&format!("{a}={} ", op(o, p)));
     }
     let _ = k::write(1, format!("{}\n", line.trim_end()).as_bytes());
+    let peek_at = args.iter().find_map(|a| a.strip_prefix("peek:"));
     let mut b = [0u8; 64];
-    while let Ok(1..) = k::read(0, &mut b) {}
+    let mut asked = Vec::new();
+    while let Ok(n @ 1..) = k::read(0, &mut b) {
+        asked.extend_from_slice(&b[..n as usize]);
+        while let (Some(at), Some(path)) = (asked.iter().position(|c| *c == b'\n'), peek_at) {
+            let pid = String::from_utf8_lossy(&asked[..at]).trim().to_string();
+            asked.drain(..=at);
+            let _ = k::write(1, format!("{pid}={}\n", peek(&pid, path)).as_bytes());
+        }
+    }
     0
 }
