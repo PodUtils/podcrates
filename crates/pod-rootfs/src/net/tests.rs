@@ -107,6 +107,57 @@ fn a_line_end_in_an_added_host_or_a_name_is_refused() {
     }
 }
 
+/// `keep_existing_hosts` (PodUtils/podvm#692, ask 4): a regular file stays
+/// with its bytes and its mode; no file, a symlink and a directory are
+/// handled as without the setting; the checks of the names still apply.
+#[test]
+fn keep_existing_hosts_leaves_a_regular_file_alone() {
+    if no_in_root() {
+        return;
+    }
+    let keep = Settings { keep_existing_hosts: true, container_name: Some("c1".into()), ..Settings::default() };
+    // A regular file: kept, also when it is empty.
+    for before in [&b"127.0.0.1 localhost\n10.0.0.9 edited\n"[..], b""] {
+        let d = Scratch::new("net-keep");
+        std::fs::write(d.at("etc/hosts"), before).unwrap();
+        std::fs::set_permissions(d.at("etc/hosts"), std::os::unix::fs::PermissionsExt::from_mode(0o600)).unwrap();
+        let fs = run_hosts(&d.root(), &keep).unwrap();
+        assert_eq!(fs[0].action, Action::Unchanged, "{:?}", fs[0]);
+        assert!(!fs[0].degraded, "{:?}", fs[0]);
+        assert_eq!(std::fs::read(d.at("etc/hosts")).unwrap(), before);
+        let mode =
+            std::os::unix::fs::PermissionsExt::mode(&std::fs::metadata(d.at("etc/hosts")).unwrap().permissions());
+        assert_eq!(mode & 0o7777, 0o600);
+        // Without the setting the file is written again.
+        let fs = run_hosts(&d.root(), &Settings { keep_existing_hosts: false, ..keep.clone() }).unwrap();
+        assert_eq!(fs[0].action, Action::Rewrote, "{:?}", fs[0]);
+    }
+    // No file: the file is written.
+    let d = Scratch::new("net-keep-none");
+    let fs = run_hosts(&d.root(), &keep).unwrap();
+    assert_eq!(fs[0].action, Action::Created, "{:?}", fs[0]);
+    assert!(std::fs::read_to_string(d.at("etc/hosts")).unwrap().contains("\tc1\n"));
+    // A symlink, also to a regular file of the root: the link is replaced,
+    // and its target outside the root does not change.
+    let outside = Scratch::new("net-keep-canary");
+    std::fs::write(outside.at("hosts"), b"host\n").unwrap();
+    for target in [outside.at("hosts"), "hosts.real".into()] {
+        let d = Scratch::new("net-keep-link");
+        std::fs::write(d.at("etc/hosts.real"), b"inside\n").unwrap();
+        std::os::unix::fs::symlink(&target, d.at("etc/hosts")).unwrap();
+        let fs = run_hosts(&d.root(), &keep).unwrap();
+        assert_eq!(fs[0].action, Action::Rewrote, "{target:?}: {:?}", fs[0]);
+        assert!(!std::fs::symlink_metadata(d.at("etc/hosts")).unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read(d.at("etc/hosts.real")).unwrap(), b"inside\n");
+    }
+    assert_eq!(std::fs::read(outside.at("hosts")).unwrap(), b"host\n");
+    // A bad name is refused also with the setting.
+    let d = Scratch::new("net-keep-bad");
+    std::fs::write(d.at("etc/hosts"), b"mine\n").unwrap();
+    let bad = Settings { add_hosts: vec!["nocolon".into()], ..keep.clone() };
+    assert_eq!(run_hosts(&d.root(), &bad).unwrap_err().class, pod_core::Class::Usage);
+}
+
 /// The resolver is written each time. An image whose resolver names the
 /// libvirt gateway of a build host looks like a right one.
 #[test]

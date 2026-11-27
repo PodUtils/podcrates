@@ -95,6 +95,14 @@ fn run_hosts(root: &Root, settings: &Settings) -> Result<Vec<Fixup>> {
             bad.join(", ")
         )));
     }
+    // A symlink is not kept: its target can be outside the root, or not
+    // resolve in it. The write replaces the link and never follows it.
+    if settings.keep_existing_hosts && matches!(root.kind("etc/hosts")?, Kind::Regular { .. }) {
+        return Ok(vec![
+            Fixup::new("hosts", "etc/hosts", Action::Unchanged)
+                .why("a regular file is here, and keep_existing_hosts keeps it as it is"),
+        ]);
+    }
     let w = root.write("etc/hosts", s.as_bytes(), 0o644)?;
     Ok(vec![Fixup::new("hosts", "etc/hosts", crate::act(w)).why(format!(
         "localhost{}{}",
