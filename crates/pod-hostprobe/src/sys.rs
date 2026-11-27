@@ -205,6 +205,9 @@ pub const SYS_PPOLL: i64 = nr!(ppoll, __NR_ppoll);
 // call takes the set size, and the libc wrapper's is not the kernel's.
 pub const SYS_RT_SIGPROCMASK: i64 = nr!(rt_sigprocmask, __NR_rt_sigprocmask);
 pub const SYS_SIGNALFD4: i64 = nr!(signalfd4, __NR_signalfd4);
+/// The action of a signal: a test gives a child the default action of a
+/// signal that its process ignores.
+pub const SYS_RT_SIGACTION: i64 = nr!(rt_sigaction, __NR_rt_sigaction);
 pub const SYS_LANDLOCK_CREATE_RULESET: i64 = nr!(landlock_create_ruleset, __NR_landlock_create_ruleset);
 pub const SYS_LANDLOCK_ADD_RULE: i64 = nr!(landlock_add_rule, __NR_landlock_add_rule);
 pub const SYS_LANDLOCK_RESTRICT_SELF: i64 = nr!(landlock_restrict_self, __NR_landlock_restrict_self);

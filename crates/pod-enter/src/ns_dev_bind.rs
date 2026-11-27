@@ -159,30 +159,43 @@ fn host_node(path: &CBuf) -> Option<bool> {
 }
 
 /// Read the image through the descriptor of its root, and the host, and
-/// build each bind and each line. Before the fork.
-pub(crate) fn devices(root: &crate::RootDir, names: &Names) -> Devices {
+/// build each bind and each line. Before the fork. `fresh`: the child
+/// mounts a tmpfs on `/dev` first (`ns_devfs`), so each path is missing
+/// there, whatever the image holds.
+pub(crate) fn devices(root: &crate::RootDir, names: &Names, fresh: bool) -> Devices {
     let lit = |s: &str| CBuf::new(s).expect("a literal");
     let dir = CBuf::new(&format!("{}/dev", root.path.trim_end_matches('/'))).unwrap_or_else(sys::cempty);
     let mut out = Devices { dir, empty: sys::cempty(), binds: Vec::new(), skipped: Vec::new(), ptmx: None };
     let flags = sys::O_PATH | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
-    let Ok(dev) = sys::openat(root.fd(), &lit("dev"), flags, 0) else {
-        out.skipped.push(no_dev_line(names).into_bytes());
-        return out;
+    let dev = match sys::openat(root.fd(), &lit("dev"), flags, 0) {
+        Ok(dev) if !fresh => dev,
+        Ok(dev) => {
+            let _ = sys::close(dev);
+            -1
+        }
+        Err(_) if fresh => -1,
+        Err(_) => {
+            out.skipped.push(no_dev_line(names).into_bytes());
+            return out;
+        }
     };
+    let kind = |name: &str| if dev < 0 { Kind::Missing } else { kind_at(dev, name) };
     for name in DEVICES {
         let source = lit(&format!("/dev/{name}"));
         let host = host_node(&source);
-        match plan_one(names, name, source, kind_at(dev, name), host, NS_DEV_BIND_STEP) {
+        match plan_one(names, name, source, kind(name), host, NS_DEV_BIND_STEP) {
             Ok(d) => out.binds.push(d),
             Err(line) => out.skipped.push(line),
         }
     }
     if let Some(pts) = crate::ns_optional::ns_pts_target(&root.path) {
-        let kind = kind_at(dev, "ptmx");
         let source = lit(&crate::ns_pts::ptmx_of(&pts));
-        out.ptmx = Some(plan_one(names, "ptmx", source, kind, Some(false), crate::ns_pts::NS_PTMX_BIND_STEP));
+        let ptmx = plan_one(names, "ptmx", source, kind("ptmx"), Some(false), crate::ns_pts::NS_PTMX_BIND_STEP);
+        out.ptmx = Some(ptmx);
     }
-    let _ = sys::close(dev);
+    if dev >= 0 {
+        let _ = sys::close(dev);
+    }
     out
 }
 

@@ -224,6 +224,13 @@ fn bare_proc(uid_map: &[u8], gid_map: &[u8]) -> std::io::Result<()> {
     put(b"/proc/self/setgroups\0", b"deny")?;
     put(b"/proc/self/uid_map\0", uid_map)?;
     put(b"/proc/self/gid_map\0", gid_map)?;
+    pid_one_over_a_fresh_proc()
+}
+
+/// A fork: the child (pid 1 of the PID namespace of an `unshare` before)
+/// makes `/` private, mounts a fresh proc on `/proc` and goes on to the
+/// exec; this process waits for it and exits with its code.
+fn pid_one_over_a_fresh_proc() -> std::io::Result<()> {
     let pid = os(unsafe { libc::fork() })?;
     if pid == 0 {
         let none = std::ptr::null();
@@ -232,6 +239,11 @@ fn bare_proc(uid_map: &[u8], gid_map: &[u8]) -> std::io::Result<()> {
         os(unsafe { libc::mount(proc, c"/proc".as_ptr(), proc, 0, none.cast()) })?;
         return Ok(());
     }
+    exit_with(pid)
+}
+
+/// Wait for the child `pid` and exit with its code (128 + the signal).
+fn exit_with(pid: libc::pid_t) -> ! {
     let mut status = 0;
     while unsafe { libc::waitpid(pid, &mut status, 0) } == -1 {
         if std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
@@ -241,3 +253,7 @@ fn bare_proc(uid_map: &[u8], gid_map: &[u8]) -> std::io::Result<()> {
     let code = if libc::WIFEXITED(status) { libc::WEXITSTATUS(status) } else { 128 + libc::WTERMSIG(status) };
     unsafe { libc::_exit(code) }
 }
+
+#[path = "nobody/special.rs"]
+mod special;
+pub use special::{RANGE_COUNT, RANGE_START, again_as_root_of_a_range, again_in_a_pid_namespace, again_with_ambient};

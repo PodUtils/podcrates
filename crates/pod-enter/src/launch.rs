@@ -239,6 +239,11 @@ pub(crate) fn spawn_with(
                     sys::exit_group(SETUP_FAILED);
                 }
             }
+            // The raise of a hard limit before a join and the lock, which
+            // take away the capability that it needs (T-1638).
+            if let Err((e, at)) = crate::limits::raise_hard(&limits) {
+                report_at(12, e, at);
+            }
             // The join comes before the passed descriptors, so a pass onto
             // the number of the pidfd cannot replace it.
             if let Some(NsEntry::Join(j, _)) = ns
@@ -279,17 +284,26 @@ pub(crate) fn spawn_with(
             }
             let _ = sys::close(self_fd);
             maps_pipes.close_child_ends();
+            // No ambient capability crosses the exec on the namespace rung:
+            // a payload that is not uid 0 keeps it with no lock (T-1641).
+            if ns.is_some() {
+                let _ = sys::ambient_clear();
+            }
             // `fchdir` onto the checked descriptor: a path can change after
             // its check, and a descriptor cannot. The working directory is
             // the root file system from here until the `chdir` below. The
             // namespace rung is in its root already, and a join of a run of
-            // it too: the join sets the root of the mount namespace.
+            // it too: the join sets the root of the mount namespace. A join
+            // never takes a directory of the caller as its working
+            // directory: it changes its root by path.
             let in_root = match ns {
                 Some(NsEntry::Own(_)) => true,
                 Some(n @ NsEntry::Join(..)) => crate::ns_root::landed(&n, root_fd, &empty, &slash),
                 None => false,
             };
-            if !in_root && let Err(e) = sys::fchdir(root_fd) {
+            if ns.is_none()
+                && let Err(e) = sys::fchdir(root_fd)
+            {
                 report(1, e);
             }
             if chroot {
@@ -356,10 +370,8 @@ pub(crate) fn spawn_with(
             // The limits and `no_new_privs` of the payload, after the root
             // change and the `chdir`, before the exec: they reach the
             // payload and no other process.
-            for (at, &(resource, soft, hard)) in limits.iter().enumerate() {
-                if let Err(e) = sys::set_rlimit(resource, soft, hard) {
-                    report_at(12, e, at as u8);
-                }
+            if let Err((e, at)) = crate::limits::apply(&limits) {
+                report_at(12, e, at);
             }
             if plan.no_new_privs
                 && let Err(e) = sys::set_no_new_privs()
@@ -409,24 +421,7 @@ pub(crate) fn spawn_with(
                 }
                 sys::exit_group(NOT_FOUND)
             }
-            let mut last = sys::ENOENT;
-            let mut refused = None;
-            for c in &candidates {
-                if let Err(e) = unsafe { sys::execve(c, argv.as_ptr(), envp.as_ptr()) } {
-                    // As `execvp`: a file that was found and refused is the
-                    // answer, also when a later path is absent. Only
-                    // `EACCES` lets the search go on.
-                    if e.exec_refused() {
-                        refused = Some(e);
-                        if e != sys::EACCES {
-                            break;
-                        }
-                    } else {
-                        last = e;
-                    }
-                }
-            }
-            let last = refused.unwrap_or(last);
+            let last = unsafe { crate::status::exec_each(&candidates, argv.as_ptr(), envp.as_ptr()) };
             // Each candidate failed. The parent reads the errno and gives
             // 126 or 127, the codes of the shell and of docker.
             let msg = [4u8, (last.0 & 0xff) as u8, ((last.0 >> 8) & 0xff) as u8, 0];

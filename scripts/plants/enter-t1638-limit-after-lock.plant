@@ -1,0 +1,9 @@
+# pod-enter: the child raises no hard limit before the lock, so host root
+# cannot raise one over its own hard value after the lock (T-1638, the
+# review of PodUtils/podvm#695). The case needs CAP_SYS_RESOURCE, which
+# root of a runner of CI holds.
+ENTRY=T-1638
+GROUP=confine
+EXPECT='a hard limit over the one of the caller, with no PID namespace \.\.\. FAILED: host root could not raise the hard limit'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

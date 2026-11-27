@@ -1,0 +1,9 @@
+# pod-enter: a read-only root binds /dev of the image onto itself, as
+# before T-1639: a write to /dev lands in the image, /dev/shm is missing,
+# and a link at /dev/null stays a link (T-1639, the review of
+# PodUtils/podvm#695).
+ENTRY=T-1639
+GROUP=confine
+EXPECT='a read-only root has a /dev of its own, with no PID namespace \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1110 entries: 174 open, 31 partial, 6 blocked, 899 done.**
+**1117 entries: 174 open, 31 partial, 6 blocked, 906 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 257 | 270 |
-| P2 | 73 | 12 | 4 | 481 | 570 |
-| P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 31 | 6 | 899 | 1110 |
+| P1 | 4 | 9 | 0 | 260 | 273 |
+| P2 | 73 | 12 | 4 | 484 | 573 |
+| P3 | 97 | 10 | 2 | 160 | 269 |
+| **All** | 174 | 31 | 6 | 906 | 1117 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1157,3 +1157,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1611](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: `TmpfsMount` has no mode, so podvm refuses `--tmpfs P:mode=M,size=N` (PodUtils/podvm#692, ask 2) |
 | [T-1612](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: no overlay kind of volume in `Plan::volumes`, so podvm mounts `-v HOST:GUEST:overlay` in a namespace step of its own (PodUtils/podvm#689) |
 | [T-1613](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the namespace rung of a caller in a user namespace binds no device of the host, so the image keeps regular files at `/dev/null` (PodUtils/podvm#689, PodUtils/podvm@T-2107) |
+| [T-1635](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a join holds the descriptors of the caller and stays dumpable in the user namespace of the payload, so a payload of uid 0 opens the host's root through `/proc/PID/fd` |
+| [T-1636](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a payload of kuid 0 under the lock writes `/proc/sys` and `/proc/sysrq-trigger` of the host |
+| [T-1637](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the fallback of the namespace rung to chroot runs a payload of uid 0 with no pivot and no lock, and the image chooses it with no `/tmp` |
+| [T-1638](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: host root cannot raise a hard limit of the payload after the lock |
+| [T-1639](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the read-only root keeps `/dev` of the image writable on the disk |
+| [T-1640](podvm.md) | P2 | S | M6 | docs | done | `pod-enter`: more hosts refuse the pivot than call C991 names |
+| [T-1641](podvm.md) | P3 | S | M6 | defect | done | `pod-enter`: the small defects of the lock and of the read-only root (EINTR, SIGPIPE, the proc of the maps, the ambient set, the recursive bind) and the cases that the tests lack |

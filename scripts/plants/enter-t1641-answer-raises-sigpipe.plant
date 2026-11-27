@@ -1,0 +1,8 @@
+# pod-enter: the answer of the parent to a child that ended after its ask
+# raises SIGPIPE, which ends a caller whose action of SIGPIPE is the
+# default (T-1641, the review of PodUtils/podvm#695).
+ENTRY=T-1641
+GROUP=enter
+EXPECT='test ns_lock::tests::an_answer_to_a_child_that_ended_raises_no_sigpipe \.\.\. FAILED'
+RUN='cargo test -p pod-enter --lib -- ns_lock::tests::an_answer_to_a_child_that_ended_raises_no_sigpipe --exact'
+LIMIT=1800

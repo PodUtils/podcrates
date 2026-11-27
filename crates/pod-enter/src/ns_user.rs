@@ -179,13 +179,13 @@ pub(crate) fn spawn_own(root: &RootDir, plan: &Plan, mount: &mut NsMount, banner
     // (PodUtils/podvm#689).
     mount.caller_userns = crate::ns_overlay::caller_in_user_namespace();
     if mount.caller_userns {
-        mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names));
+        mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
     }
     match spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), banner, err) {
         Err(Error::NsSetup { step, errno }) if calls_for_user_namespace(step, errno) => {
             mount.user = Some(Maps::of_caller_inside(ids));
             if mount.devices.is_none() {
-                mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names));
+                mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
             }
             let result = spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), false, err);
             Own { result, first: Some((step, errno)) }

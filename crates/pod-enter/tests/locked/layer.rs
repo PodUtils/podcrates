@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-use super::cases::{EINVAL, ENOENT, expect, plan, start, tree};
+use super::run::{EINVAL, ENOENT, expect, host_root, plan, start, tree};
 use pod_enter::{OverlayLayers, RootDir, VolumeBind, spawn_namespace};
 
 /// Each file and directory under `dir`: its path, its mode, and its bytes.
@@ -116,14 +116,6 @@ pub fn overlay_volume(pid: bool) -> Result<(), String> {
     }
 }
 
-/// Does a user namespace own the mount namespace that the rung makes: is
-/// this process not host root?
-fn owned_by_a_user_namespace() -> bool {
-    let initial =
-        std::fs::read_to_string("/proc/self/uid_map").is_ok_and(|m| pod_hostprobe::userns::is_initial_map(&m));
-    !(initial && pod_testkit::nobody::is_root())
-}
-
 /// The regular files of the image at `/dev/null` and `/dev/urandom` become
 /// the host's nodes, and `/dev/ptmx` opens, where a user namespace owns the
 /// mount namespace.
@@ -134,7 +126,7 @@ pub fn devices(pid: bool) -> Result<(), String> {
     }
     std::fs::create_dir_all(t.image.join("dev/pts")).map_err(|e| e.to_string())?;
     let root = RootDir::open(t.image.to_str().unwrap()).map_err(|e| e.to_string())?;
-    let want: Vec<(&str, i64)> = if owned_by_a_user_namespace() {
+    let want: Vec<(&str, i64)> = if !host_root() {
         vec![("chr:/dev/null", 1), ("chr:/dev/urandom", 1), ("rdwr:/dev/ptmx", 0)]
     } else {
         vec![("chr:/dev/null", 0), ("chr:/dev/urandom", 0)]

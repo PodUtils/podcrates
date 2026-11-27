@@ -163,9 +163,10 @@ fn a_working_directory_in_a_tmpfs_is_made_by_the_child() {
 }
 
 /// An entry with no mount namespace refuses a tmpfs before the banner: the
-/// chroot rung, and the namespace rung where it cannot mount (an image
-/// with no `/tmp` makes it fall back to chroot). The payload never runs
-/// with no limit.
+/// chroot rung, and the fallback of the namespace rung where it cannot
+/// make its mount namespace (a seccomp filter on the thread of the entry
+/// refuses `unshare(2)` with `ENOSPC`, as a used-up `max_mnt_namespaces`).
+/// The payload never runs with no limit.
 #[test]
 fn an_entry_that_cannot_mount_refuses_a_tmpfs_by_name() {
     let d = scratch("chroot");
@@ -177,13 +178,19 @@ fn an_entry_that_cannot_mount_refuses_a_tmpfs_by_name() {
     let text = e.to_string();
     assert!(text.contains("the tmpfs /work:size=1048576 needs the namespace rung; the chroot rung"), "{text}");
     assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
-    let e = crate::spawn_namespace(&root, &p, &mut err).err().unwrap();
+    let e = std::thread::scope(|s| {
+        s.spawn(|| {
+            let deny = [pod_confine::Deny::call("unshare", sys::SYS_UNSHARE, sys::ENOSPC.0 as u16)];
+            sys::set_no_new_privs().unwrap();
+            sys::seccomp_set_filter(&pod_confine::deny::program(&deny).unwrap(), 0).unwrap();
+            crate::spawn_namespace(&root, &p, &mut err).err().unwrap()
+        })
+        .join()
+        .unwrap()
+    });
     assert_eq!(class_of(&e), Some(Class::Unsupported));
     let text = e.to_string();
-    assert!(
-        text.contains("the tmpfs /work:size=1048576 needs the namespace rung, and the image holds no /tmp"),
-        "{text}"
-    );
-    assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
+    assert!(text.contains("the tmpfs /work:size=1048576 needs the namespace rung, and the namespace rung"), "{text}");
+    assert!(text.contains("ENOSPC"), "{text}");
     let _ = fs::remove_dir_all(&d);
 }

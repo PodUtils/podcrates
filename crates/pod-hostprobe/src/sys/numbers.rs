@@ -133,6 +133,11 @@ pub const EXDEV: Errno = errno(e::EXDEV);
 pub const ENOTDIR: Errno = errno(e::ENOTDIR);
 /// `EROFS`: a write to a file system or a mount that is read-only.
 pub const EROFS: Errno = errno(e::EROFS);
+/// `ENOSPC`: also a count of namespaces of the kind that is used up
+/// (`max_mnt_namespaces`, `max_user_namespaces`).
+pub const ENOSPC: Errno = errno(e::ENOSPC);
+/// `EPIPE`: a write to a pipe whose read end is closed (it raises SIGPIPE).
+pub const EPIPE: Errno = errno(e::EPIPE);
 pub const EISDIR: Errno = errno(e::EISDIR);
 pub const EINVAL: Errno = errno(e::EINVAL);
 pub const ENOSYS: Errno = errno(e::ENOSYS);

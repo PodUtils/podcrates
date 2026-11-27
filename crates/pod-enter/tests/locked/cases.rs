@@ -1,28 +1,30 @@
 //! The cases of `locked.rs`, and the paths of the caller that run them.
 
-use std::collections::HashMap;
-use std::num::NonZeroU64;
-use std::path::PathBuf;
-
-use pod_enter::{Child, Fds, Names, Plan, RootDir, TmpfsMount, VolumeBind, spawn_joined, spawn_namespace};
-use pod_hostprobe::sys::{self as k, PollFd};
+use pod_enter::{RootDir, spawn_joined, spawn_namespace};
+use pod_hostprobe::sys as k;
 use pod_testkit::host::skip_line;
 use pod_testkit::nobody;
 
-use super::image::{GUEST_EXE, build};
-use super::probe::PROBE;
+use super::run::{EPERM, EROFS, borrowed, expect, host_root, lock_ops, plan, start, tree};
 
 /// The first argument of the binary that runs the cases on one path; the
 /// second names the path.
 pub const CASES: &str = "cases";
+/// The first argument of the binary that runs the case of the ambient set
+/// (`more::ambient`).
+pub const AMBIENT: &str = "ambient";
+/// The first argument of the binary that runs the case of a proc of
+/// another PID namespace (`more::foreign_proc`).
+pub const FOREIGN_PROC: &str = "foreign-proc";
 
-const EPERM: i64 = -(k::EPERM.0 as i64);
-pub const EINVAL: i64 = -(k::EINVAL.0 as i64);
-pub const ENOENT: i64 = -(k::ENOENT.0 as i64);
-const EROFS: i64 = -(k::EROFS.0 as i64);
+/// `CAP_SYS_ADMIN`.
+const CAP_SYS_ADMIN: u32 = 21;
 
 /// The cases on the path of this process, then on each other path that
-/// this host gives. The exit code of the run.
+/// this host gives. The exit code of the run. The paths that only root
+/// makes (a range of ids, an ambient capability, a proc of another PID
+/// namespace) run where this process is root, and print nothing
+/// elsewhere.
 pub fn each_path() -> i32 {
     let here = if nobody::is_root() { "host root" } else { "the user namespace of the rung" };
     let mut failed = run_all(here);
@@ -33,6 +35,14 @@ pub fn each_path() -> i32 {
     }
     let label = "uid 0 of a user namespace of one id";
     again.push((label, nobody::again_as_root_of_a_user_namespace(&[CASES, label], &[])));
+    if nobody::is_root() {
+        let label = "uid 0 of a user namespace of a range of ids";
+        again.push((label, nobody::again_as_root_of_a_range(&[CASES, label], &[])));
+        let label = "uid 65534 with CAP_SYS_ADMIN in its ambient set";
+        again.push((label, nobody::again_with_ambient(CAP_SYS_ADMIN, &[AMBIENT, label], &[])));
+        let label = "host root in a PID namespace over the host's proc";
+        again.push((label, nobody::again_in_a_pid_namespace(&[FOREIGN_PROC, label], &[])));
+    }
     for (label, code) in again {
         match code {
             Ok(0) => {}
@@ -48,7 +58,13 @@ pub fn each_path() -> i32 {
 }
 
 /// One case, with or with no PID namespace.
-type Case = fn(bool) -> Result<(), String>;
+pub type Case = fn(bool) -> Result<(), String>;
+
+/// The cases and the PID namespaces each one runs with. A case of a join
+/// of the host's processes runs with no PID namespace only: in one, the
+/// payload of the run sees no process of the host.
+const BOTH: &[bool] = &[false, true];
+const NONE: &[bool] = &[false];
 
 /// Each case on the path `path` (the path of this process), with and with
 /// no PID namespace. The count of the failed cases.
@@ -60,16 +76,28 @@ pub fn run_all(path: &str) -> i32 {
             return 0;
         }
     }
-    let cases: [(&str, Case); 5] = [
-        ("the mounts of the rung are locked and the root holds", locked),
-        ("a join lands in the namespaces of the payload and is locked", joined),
-        ("a read-only root refuses a write", read_only),
-        ("an overlay volume keeps its lower layer and is locked", super::layer::overlay_volume),
-        ("a user namespace of the mounts gets the devices of the host", super::layer::devices),
+    let cases: [(&str, Case, &[bool]); 12] = [
+        ("the mounts of the rung are locked and the root holds", locked, BOTH),
+        ("a join lands in the namespaces of the payload and is locked", joined, BOTH),
+        ("a read-only root refuses a write", read_only, BOTH),
+        ("a join is not dumpable between its join and its exec", super::join_dump::join_not_dumpable, NONE),
+        ("an image with no /tmp runs locked", super::fallback::no_tmp, BOTH),
+        ("an image whose /tmp is a link is refused", super::fallback::tmp_link, NONE),
+        ("a payload of uid 0 refuses the fallback to chroot", super::fallback::refused_fallback, NONE),
+        ("a hard limit over the one of the caller", super::more::limit_over_hard, BOTH),
+        ("a read-only root has a /dev of its own", super::more::dev_of_its_own, BOTH),
+        ("a read-only root hides a mount under its tree", super::more::mount_under_the_tree, BOTH),
+        ("an overlay volume keeps its lower layer and is locked", super::layer::overlay_volume, BOTH),
+        ("a user namespace of the mounts gets the devices of the host", super::layer::devices, BOTH),
     ];
+    run_each(path, &cases)
+}
+
+/// Each case of `cases` on `path`. The count of the failed cases.
+pub fn run_each(path: &str, cases: &[(&str, Case, &[bool])]) -> i32 {
     let mut failed = 0;
-    for (name, case) in cases {
-        for pid in [false, true] {
+    for (name, case, pids) in cases {
+        for pid in pids.iter().copied() {
             let ns = if pid { "with" } else { "with no" };
             let r = std::panic::catch_unwind(|| case(pid)).unwrap_or_else(|_| Err("panicked".to_string()));
             match r {
@@ -84,163 +112,17 @@ pub fn run_all(path: &str) -> i32 {
     failed
 }
 
-/// The image, the host sides of a read-only and a writable volume, and a
-/// host file that the payload must not reach.
-pub struct Tree {
-    pub dir: PathBuf,
-    pub image: PathBuf,
-    ro: PathBuf,
-    rw: PathBuf,
-    marker: String,
-}
-
-impl Drop for Tree {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.dir);
-    }
-}
-
-pub fn tree(tag: &str) -> Tree {
-    let dir = std::env::temp_dir().join(format!("pod-enter-locked-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    let image = dir.join("image");
-    build(&image);
-    for d in ["ro", "rw", "t", "proc", "dev"] {
-        std::fs::create_dir_all(image.join(d)).unwrap();
-    }
-    let (ro, rw) = (dir.join("ro-host"), dir.join("rw-host"));
-    std::fs::create_dir_all(&ro).unwrap();
-    std::fs::create_dir_all(&rw).unwrap();
-    std::fs::write(ro.join("f"), "host").unwrap();
-    let marker = dir.join("marker");
-    std::fs::write(&marker, "host").unwrap();
-    Tree { marker: marker.to_str().unwrap().to_string(), dir, image, ro, rw }
-}
-
-pub fn plan(t: &Tree, ops: &[String], pid: bool, read_only_root: bool) -> Plan {
-    let volume = |host: &PathBuf, guest: &str, read_only| VolumeBind {
-        host: host.to_str().unwrap().to_string(),
-        guest: guest.to_string(),
-        read_only,
-        host_base: None,
-        overlay: None,
-    };
-    let bytes = NonZeroU64::new(1 << 20).unwrap();
-    Plan {
-        argv: [GUEST_EXE, PROBE].into_iter().map(String::from).chain(ops.iter().cloned()).collect(),
-        env: Vec::new(),
-        working_dir: "/".to_string(),
-        fds: Fds::default(),
-        banner: String::new(),
-        path_dirs: Vec::new(),
-        names: Names::DEFAULT,
-        limits: Vec::new(),
-        no_new_privs: false,
-        die_with_parent: false,
-        confine: None,
-        hostname: None,
-        volumes: vec![volume(&t.ro, "/ro", true), volume(&t.rw, "/rw", false)],
-        userns_ids: None,
-        pid_namespace: pid,
-        tmpfs: vec![TmpfsMount { guest: "/t".to_string(), bytes, mode: None }],
-        relay_title: None,
-        read_only_root,
-    }
-}
-
-/// A payload that runs: its line and the write end of its standard input.
-pub struct Running {
-    child: Child,
-    results: HashMap<String, i64>,
-    hold: i64,
-}
-
-impl Running {
-    /// Let the payload end, and give its exit code.
-    pub fn end(self) -> Result<i32, String> {
-        let _ = k::close(self.hold);
-        self.child.wait().map_err(|e| e.to_string())
-    }
-
-    fn get(&self, op: &str) -> Result<i64, String> {
-        self.results.get(op).copied().ok_or_else(|| format!("no result of {op}: {:?}", self.results))
-    }
-}
-
-fn pipe() -> (i64, i64) {
-    let mut p = [0i32; 2];
-    k::pipe2(&mut p, k::O_CLOEXEC).expect("a pipe");
-    (i64::from(p[0]), i64::from(p[1]))
-}
-
-/// Start the payload of `plan` with `spawn`, and read its line.
-pub fn start(plan: &mut Plan, spawn: impl FnOnce(&Plan) -> pod_enter::Result<Child>) -> Result<Running, String> {
-    let (hold_r, hold) = pipe();
-    let (out, out_w) = pipe();
-    plan.fds.pass = vec![(0, hold_r), (1, out_w)];
-    let spawned = spawn(plan);
-    let _ = (k::close(hold_r), k::close(out_w));
-    let child = spawned.map_err(|e| {
-        let _ = (k::close(hold), k::close(out));
-        e.to_string()
-    })?;
-    let mut line = Vec::new();
-    let mut buf = [0u8; 512];
-    while !line.ends_with(b"\n") {
-        let mut fds = [PollFd { fd: out as i32, events: k::POLLIN, revents: 0 }];
-        if k::ppoll(&mut fds, 60_000) != Ok(1) {
-            break;
-        }
-        match k::read(out, &mut buf) {
-            Ok(n @ 1..) => line.extend_from_slice(&buf[..n as usize]),
-            _ => break,
-        }
-    }
-    let _ = k::close(out);
-    let text = String::from_utf8_lossy(&line);
-    let results = text
-        .split_whitespace()
-        .filter_map(|w| w.rsplit_once('=').and_then(|(op, r)| Some((op.to_string(), r.parse().ok()?))))
-        .collect();
-    Ok(Running { child, results, hold })
-}
-
-/// The result of each operation, against the wanted one.
-pub fn expect(r: &Running, want: &[(&str, i64)]) -> Result<(), String> {
-    let wrong: Vec<String> = want
-        .iter()
-        .filter_map(|(op, w)| match r.get(op) {
-            Ok(got) if got == *w => None,
-            Ok(got) => Some(format!("{op} gave {got}, not {w}")),
-            Err(e) => Some(e),
-        })
-        .collect();
-    if wrong.is_empty() { Ok(()) } else { Err(wrong.join("; ")) }
-}
-
-/// The operations of the lock, and what each must give.
-fn lock_ops(marker: &str) -> (Vec<String>, Vec<(String, i64)>) {
-    let want = [
-        ("remount:/ro".to_string(), EPERM),
-        ("write:/ro/f".to_string(), EROFS),
-        ("remount:/proc".to_string(), EPERM),
-        ("size:/t".to_string(), EPERM),
-        ("umount:/ro".to_string(), EINVAL),
-        (format!("escape:{marker}"), ENOENT),
-    ];
-    (want.iter().map(|(op, _)| op.clone()).collect(), want.to_vec())
-}
-
-fn borrowed(want: &[(String, i64)]) -> Vec<(&str, i64)> {
-    want.iter().map(|(op, w)| (op.as_str(), *w)).collect()
-}
-
 /// The payload gets `EPERM` or `EINVAL` on each change of a mount of the
 /// rung, and its way out of a chroot reaches no host path. The host side
 /// of the read-only volume keeps its content.
 fn locked(pid: bool) -> Result<(), String> {
     let t = tree(if pid { "lock-pid" } else { "lock" });
-    let (ops, want) = lock_ops(&t.marker);
+    let (mut ops, mut want) = lock_ops(&t.marker);
+    // A masked file of the proc of host root is `/dev/null` (T-1636).
+    if host_root() && std::path::Path::new("/proc/timer_list").exists() {
+        ops.push("chr:/proc/timer_list".to_string());
+        want.push(("chr:/proc/timer_list".to_string(), 1));
+    }
     let root = RootDir::open(t.image.to_str().unwrap()).map_err(|e| e.to_string())?;
     let mut err = Vec::new();
     let r = start(&mut plan(&t, &ops, pid, false), |p| spawn_namespace(&root, p, &mut err))?;

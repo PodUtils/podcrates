@@ -48,6 +48,9 @@ use crate::{Error, Plan, Result};
 pub const NS_LOCK_USER_STEP: u8 = 58;
 /// `unshare(CLONE_NEWNS)` in the nested user namespace.
 pub const NS_NESTED_NS_STEP: u8 = 59;
+/// The parent did not write the maps: its `/proc` is not the proc of its
+/// PID namespace, so `/proc/PID` would name another process.
+pub const NS_LOCK_PROC_STEP: u8 = 72;
 
 /// The nested namespace of one fork, built before it.
 pub(crate) struct Nested {
@@ -170,6 +173,20 @@ pub(crate) fn nested_for(plan: &Plan, ns: Option<&NsEntry<'_>>, userland: bool) 
     lock((0, egid), &uid_map, &gid_map).map(Some)
 }
 
+/// Is the payload of the chroot rung for `plan` uid 0: the effective uid
+/// of the caller is 0, and the plan gives no other uid for a user
+/// namespace that is not the initial one? Such a payload refuses the
+/// fallback of the namespace rung (T-1637).
+pub(crate) fn chroot_payload_is_root(plan: &Plan) -> Result<bool> {
+    let euid = unsafe { sys::syscall6(sys::SYS_GETEUID, 0, 0, 0, 0, 0, 0) } as u32;
+    if euid != 0 {
+        return Ok(false);
+    }
+    let ids = plan.userns_ids.map(|_| userns_ids(plan)).transpose()?;
+    let nested = nested_ids(ids, euid, || std::fs::read_to_string("/proc/self/uid_map"))?;
+    Ok(nested.is_none_or(|(u, _)| u == 0))
+}
+
 impl Nested {
     /// The byte after the step and the errno of a refusal: 0 for the ids
     /// of the plan, 1 for the lock ([`failure`]).
@@ -198,10 +215,11 @@ impl Nested {
             })?,
             None => {
                 // One byte asks the parent; three come back: the step and
-                // the errno, or a zero step.
-                sys::write(ask, &[1]).map_err(|e| (NS_NESTED_UID_MAP_STEP, e))?;
+                // the errno, or a zero step. A signal can stop either call
+                // before it moved a byte: try it again.
+                retry(|| sys::write(ask, &[1])).map_err(|e| (NS_NESTED_UID_MAP_STEP, e))?;
                 let mut got = [0u8; 3];
-                match sys::read(answer, &mut got) {
+                match retry(|| sys::read(answer, &mut got)) {
                     Ok(3) if got[0] == 0 => {}
                     Ok(3) => return Err((got[0], Errno(i32::from(got[1]) | (i32::from(got[2]) << 8)))),
                     Ok(_) => return Err((NS_NESTED_UID_MAP_STEP, sys::EIO)),
@@ -213,6 +231,16 @@ impl Nested {
             sys::unshare(sys::CLONE_NEWNS).map_err(|e| (NS_NESTED_NS_STEP, e))?;
         }
         Ok(())
+    }
+}
+
+/// `call` again while it fails with `EINTR`. Async-signal-safe.
+fn retry(mut call: impl FnMut() -> sys::Sysres) -> sys::Sysres {
+    loop {
+        match call() {
+            Err(e) if e == sys::EINTR => continue,
+            r => return r,
+        }
     }
 }
 
@@ -292,7 +320,14 @@ fn serve(lines: &(Vec<u8>, Vec<u8>), pid: i64, ask: i64, answer: i64) {
     if !asked {
         return;
     }
+    // The child is a pid of the PID namespace of this process: only a proc
+    // of that namespace names it (`ns_proc_bind::host_proc`).
+    let ours = sys::readlink(&sys::CBuf::new("/proc/self").expect("a literal"))
+        .is_ok_and(|link| crate::proc_of_this_pid_namespace(&link, sys::getpid()));
     let write = |name: &str, bytes: &[u8]| -> std::io::Result<()> {
+        if !ours {
+            return Err(std::io::Error::from_raw_os_error(sys::EXDEV.0));
+        }
         let mut f = std::fs::OpenOptions::new().write(true).open(format!("/proc/{pid}/{name}"))?;
         // The kernel takes a map in one write only.
         match f.write(bytes)? {
@@ -302,13 +337,37 @@ fn serve(lines: &(Vec<u8>, Vec<u8>), pid: i64, ask: i64, answer: i64) {
     };
     let errno = |e: std::io::Error| Errno(e.raw_os_error().unwrap_or(sys::EIO.0));
     let (step, e) = match write("uid_map", &lines.0) {
+        Err(_) if !ours => (NS_LOCK_PROC_STEP, sys::EXDEV),
         Err(e) => (NS_NESTED_UID_MAP_STEP, errno(e)),
         Ok(()) => match write("gid_map", &lines.1) {
             Err(e) => (NS_NESTED_GID_MAP_STEP, errno(e)),
             Ok(()) => (0, Errno(0)),
         },
     };
-    let _ = sys::write(answer, &[step, (e.0 & 0xff) as u8, ((e.0 >> 8) & 0xff) as u8]);
+    answer_with_no_sigpipe(answer, &[step, (e.0 & 0xff) as u8, ((e.0 >> 8) & 0xff) as u8]);
+}
+
+/// Write `bytes` to the pipe `answer` with SIGPIPE blocked in this thread:
+/// a child that ended after its ask closed the read end, and the write
+/// then raises SIGPIPE, which ends a caller that did not ignore it. A
+/// SIGPIPE that the write raised is taken back before the mask returns.
+fn answer_with_no_sigpipe(answer: i64, bytes: &[u8]) {
+    let pipe = sys::sigbit(sys::SIGPIPE);
+    let mut old = 0u64;
+    let blocked = sys::sigblock(pipe, &mut old).is_ok();
+    let wrote = retry(|| sys::write(answer, bytes));
+    if blocked && old & pipe == 0 {
+        // The kernel queues a blocked SIGPIPE also where its action is to
+        // ignore it; read it from a signalfd of this thread.
+        if wrote == Err(sys::EPIPE)
+            && let Ok(fd) = sys::signalfd(pipe)
+        {
+            let mut info = [0u8; 128];
+            let _ = sys::read(fd, &mut info);
+            let _ = sys::close(fd);
+        }
+        let _ = sys::sigrestore(old);
+    }
 }
 
 /// The refusal of a step of the nested namespace, or `None` where `byte`
@@ -317,6 +376,9 @@ fn serve(lines: &(Vec<u8>, Vec<u8>), pid: i64, ask: i64, answer: i64) {
 pub(crate) fn failure(plan: &Plan, byte: u8, errno: Errno, at: u8) -> Option<Error> {
     let call = match byte {
         NS_NESTED_NS_STEP => "unshare(CLONE_NEWNS)",
+        NS_LOCK_PROC_STEP => {
+            "the write of its maps through /proc/PID (the /proc of the caller is not the proc of its PID namespace)"
+        }
         NS_LOCK_USER_STEP => return None,
         _ => nested_step(byte)?.name(),
     };
