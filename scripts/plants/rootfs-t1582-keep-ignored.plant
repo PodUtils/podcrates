@@ -1,0 +1,6 @@
+# pod-rootfs: keep_existing_hosts does not keep a regular /etc/hosts (T-1582).
+ENTRY=T-1582
+GROUP=rootfs
+EXPECT='test net::tests::keep_existing_hosts_leaves_a_regular_file_alone \.\.\. FAILED'
+RUN='cargo test -p pod-rootfs --all-features --lib net::tests::keep_existing_hosts'
+LIMIT=900

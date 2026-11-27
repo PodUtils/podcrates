@@ -42,7 +42,7 @@ mod steps {
     use std::time::{Duration, Instant};
 
     use pod_hostprobe::sys;
-    use pod_supervise::launcher::{Launch, Payload};
+    use pod_supervise::launcher::{EntryFailure, Launch, Payload};
     use pod_supervise::table::{Any, Container, State};
     use pod_supervise::{Settings, auto_remove, create, get, kill, logs, remove, start, stop, wait};
 
@@ -211,8 +211,23 @@ mod steps {
         let e = start(s, "refused", |_: &Container<Any>, _: Launch<'_>| Err("no entry for this test".to_string()))
             .expect_err("a start whose entry failed");
         assert!(e.text().contains("no entry for this test"), "{e}");
+        assert_eq!(EntryFailure::of(&e).map(|f| f.code), Some(None), "a text with no code: {e}");
         let c = get::<Any>(s, "refused").unwrap();
         assert_eq!(c.state, State::Created, "a failed entry changed the record");
+        // PodUtils/podvm#692, ask 3: the exit code of a failed spawn of the
+        // entry comes back as a value, as docker gives it: 127 for a program
+        // that is not there, 126 for one that cannot run (a directory).
+        for (program, want) in [("/nonexistent/program", 127), ("/", 126)] {
+            let e = start(s, "refused", |_: &Container<Any>, _: Launch<'_>| -> Result<Payload, EntryFailure> {
+                let e = Command::new(program).spawn().expect_err("no payload");
+                let code = if e.kind() == std::io::ErrorKind::NotFound { 127 } else { 126 };
+                Err(EntryFailure::coded(code, format!("exec {program}: {e}")))
+            })
+            .expect_err("a start whose spawn failed");
+            assert_eq!(EntryFailure::of(&e).and_then(|f| f.code), Some(want), "{program}: {e}");
+            assert!(e.text().starts_with(&format!("exec {program}: ")), "no code in the text: {e}");
+            assert_eq!(get::<Any>(s, "refused").unwrap().state, State::Created);
+        }
         remove::<Any>(s, "refused", false).expect("remove");
     }
 

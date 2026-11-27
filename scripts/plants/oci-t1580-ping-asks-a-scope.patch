@@ -1,0 +1,13 @@
+diff --git a/crates/pod-oci/src/registry/http.rs b/crates/pod-oci/src/registry/http.rs
+index 676b6532..e0186a26 100644
+--- a/crates/pod-oci/src/registry/http.rs
++++ b/crates/pod-oci/src/registry/http.rs
+@@ -230,7 +230,7 @@ impl Client {
+         // An empty scope (the ping of `/v2/`) asks for no access: the realm
+         // then checks the login alone, as for `docker login`.
+         let wanted = params.get("scope").map(String::as_str).unwrap_or(scope);
+-        if !wanted.is_empty() {
++        if wanted.is_empty() || !wanted.is_empty() {
+             url.push_str(&format!("{sep}scope={}", query_value(wanted)));
+         }
+ 

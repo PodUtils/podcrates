@@ -128,6 +128,15 @@ pub struct Settings {
     /// More lines of `/etc/hosts`, each `name:address` (docker's
     /// `--add-host`).
     pub add_hosts: Vec<String>,
+    /// Leave a regular file `/etc/hosts` as it is: the completion of a root
+    /// that a run uses already (an `exec`) then keeps the edits of the
+    /// payload. Each other kind (a missing file, a symlink, a directory)
+    /// gets the generated file, as with `false`. The checks of
+    /// `container_name` and `add_hosts` apply in both cases. Set it only
+    /// for a root that the run completed before: for a new root, the
+    /// `/etc/hosts` of the image would stay with no container name and no
+    /// added host.
+    pub keep_existing_hosts: bool,
     /// Change `http://` package sources to `https://`. When false, the crate
     /// puts back the original of each source that an earlier run changed.
     pub source_fixup: bool,
@@ -168,6 +177,7 @@ impl Default for Settings {
             host: pod_hostprobe::Settings::default(),
             container_name: None,
             add_hosts: Vec::new(),
+            keep_existing_hosts: false,
             source_fixup: true,
             host_cas: true,
             steps: true,

@@ -125,6 +125,15 @@ pub(super) fn registry_message(body: &str) -> Option<String> {
     struct Errors {
         errors: Vec<Entry>,
     }
+    /// The error body of the token realm of Docker Hub:
+    /// `{"details":"incorrect username or password"}`.
+    #[derive(Deserialize)]
+    struct Details {
+        details: String,
+    }
+    if let Ok(d) = serde_json::from_str::<Details>(body) {
+        return Some(d.details);
+    }
     #[derive(Deserialize)]
     struct Entry {
         code: Option<String>,

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-rootfs/src/net.rs b/crates/pod-rootfs/src/net.rs
+index ee377601..9fff6ee6 100644
+--- a/crates/pod-rootfs/src/net.rs
++++ b/crates/pod-rootfs/src/net.rs
+@@ -97,7 +97,7 @@ fn run_hosts(root: &Root, settings: &Settings) -> Result<Vec<Fixup>> {
+     }
+     // A symlink is not kept: its target can be outside the root, or not
+     // resolve in it. The write replaces the link and never follows it.
+-    if settings.keep_existing_hosts && matches!(root.kind("etc/hosts")?, Kind::Regular { .. }) {
++    if false && settings.keep_existing_hosts && matches!(root.kind("etc/hosts")?, Kind::Regular { .. }) {
+         return Ok(vec![
+             Fixup::new("hosts", "etc/hosts", Action::Unchanged)
+                 .why("a regular file is here, and keep_existing_hosts keeps it as it is"),

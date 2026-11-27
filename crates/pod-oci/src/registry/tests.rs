@@ -172,6 +172,9 @@ fn a_registry_error_body_is_read_for_its_message() {
     let body = r#"{"errors":[{"code":"MANIFEST_UNKNOWN","message":"manifest unknown"}]}"#;
     assert_eq!(registry_message(body).unwrap(), "MANIFEST_UNKNOWN: manifest unknown");
     assert!(registry_message("not json").is_none());
+    // The token realm of Docker Hub names a refused login so.
+    let hub = r#"{"details":"incorrect username or password"}"#;
+    assert_eq!(registry_message(hub).unwrap(), "incorrect username or password");
 }
 
 /// Split a request URL the way the error renderer needs it: any scheme,

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-supervise/src/launcher/entry.rs b/crates/pod-supervise/src/launcher/entry.rs
+index 91c4f4b4..fa010fb6 100644
+--- a/crates/pod-supervise/src/launcher/entry.rs
++++ b/crates/pod-supervise/src/launcher/entry.rs
+@@ -46,7 +46,7 @@ impl EntryFailure {
+     /// The message of the launcher on the ready pipe.
+     pub(super) fn line(&self) -> String {
+         match self.code {
+-            Some(code) => format!("{EXIT}{code} {}", self.text),
++            Some(_) => format!("{ERR}{}", self.text),
+             None => format!("{ERR}{}", self.text),
+         }
+     }

@@ -26,6 +26,7 @@ use distribution::tls::Pki;
 use distribution::token::{TokenServer, mint};
 use pod_core::Class;
 use pod_oci::credentials::{Credential, Logins};
+use pod_oci::registry::Ping;
 use pod_oci::transport::Policy;
 use pod_oci::{Client, Digest, Platform, Reference, Refusal, pull, refusal};
 
@@ -236,4 +237,75 @@ fn no_login_goes_over_plain_http() {
     assert_eq!(e.class, Class::Policy, "{e}");
     assert!(e.to_string().contains("sends no login over plain HTTP"), "{e}");
     println!("distribution: no login went over plain HTTP");
+}
+
+/// `Client::ping` (PodUtils/podvm#692, ask 1): `GET /v2/` with the stored
+/// login under a `Basic` challenge; a wrong password and no login are
+/// `Class::Refused` with the reason of the registry.
+#[test]
+fn a_ping_checks_the_login_of_a_basic_challenge() {
+    pod_testkit::need_loopback!();
+    let pki = Pki::new();
+    let Some(registry) = Registry::start("ping-basic", Auth::Htpasswd, true, &pki) else { return };
+    let mut good = client(&registry, &[&registry.endpoint]);
+    assert_eq!(
+        good.ping(&registry.endpoint).unwrap_or_else(|e| panic!("{e}\n{}", registry.said())),
+        Ping::Authenticated
+    );
+    let mut wrong = client_with(&registry, &[&registry.endpoint], "another-made-up-password", Policy::default());
+    let e = wrong.ping(&registry.endpoint).expect_err("a wrong password");
+    assert_eq!(e.class, Class::Refused, "{e}");
+    assert!(e.to_string().contains("HTTP 401: UNAUTHORIZED"), "the reason of the registry: {e}");
+    let mut none = client(&registry, &[]);
+    let e = none.ping(&registry.endpoint).expect_err("no login");
+    assert_eq!(e.class, Class::Refused, "{e}");
+    assert!(e.to_string().contains("no login is stored"), "{e}");
+    println!("distribution: a ping checked the login of a Basic challenge");
+}
+
+/// `Client::ping` under a `Bearer` challenge: the token ask has no scope
+/// and carries the login; the realm refuses an ask with no login.
+#[test]
+fn a_ping_checks_the_login_of_a_bearer_challenge() {
+    pod_testkit::need_loopback!();
+    let pki = Pki::new();
+    let tokens = TokenServer::start(&pki);
+    let Some(registry) = Registry::start("ping-token", Auth::Token { realm: tokens.realm() }, true, &pki) else {
+        return;
+    };
+    let token_host = format!("{}:{}", distribution::AT, tokens.port);
+    let mut good = client(&registry, &[&token_host]);
+    assert_eq!(
+        good.ping(&registry.endpoint).unwrap_or_else(|e| panic!("{e}\n{}", registry.said())),
+        Ping::Authenticated
+    );
+    // A second ping asks the realm again: it checks the login, not a token
+    // that the client keeps.
+    assert_eq!(good.ping(&registry.endpoint).unwrap(), Ping::Authenticated);
+    let asked = tokens.asked();
+    assert_eq!(asked.len(), 2, "{asked:?}");
+    for ask in &asked {
+        assert!(ask.login, "an ask with no login: {}", ask.path);
+        assert!(distribution::query_values(&ask.path, "scope").is_empty(), "a scope in the ask: {}", ask.path);
+        assert_eq!(distribution::query_values(&ask.path, "service"), [distribution::SERVICE]);
+    }
+    let mut none = client(&registry, &[]);
+    let e = none.ping(&registry.endpoint).expect_err("no login");
+    assert_eq!(e.class, Class::Refused, "{e}");
+    assert!(e.to_string().contains("HTTP 401: UNAUTHORIZED: no login"), "the reason of the realm: {e}");
+    println!("distribution: a ping checked the login of a Bearer challenge");
+}
+
+/// `Client::ping` of a registry that asks for no login is `Anonymous`,
+/// also with a stored login.
+#[test]
+fn a_ping_of_an_open_registry_is_anonymous() {
+    pod_testkit::need_loopback!();
+    let pki = Pki::new();
+    let Some(registry) = Registry::start("ping-open", Auth::Open, true, &pki) else { return };
+    for hosts in [&[][..], &[registry.endpoint.as_str()][..]] {
+        let mut c = client(&registry, hosts);
+        assert_eq!(c.ping(&registry.endpoint).unwrap_or_else(|e| panic!("{e}\n{}", registry.said())), Ping::Anonymous);
+    }
+    println!("distribution: a ping of an open registry was anonymous");
 }

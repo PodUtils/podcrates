@@ -1,0 +1,13 @@
+diff --git a/crates/pod-extract/src/xattr/on_disk.rs b/crates/pod-extract/src/xattr/on_disk.rs
+index 06e10491..8da02932 100644
+--- a/crates/pod-extract/src/xattr/on_disk.rs
++++ b/crates/pod-extract/src/xattr/on_disk.rs
+@@ -65,7 +65,7 @@ pub fn of_path(path: &Path) -> std::io::Result<Vec<(String, Vec<u8>)>> {
+ /// a read of that size, and a new try on `ERANGE`.
+ fn names(c: &CBuf) -> std::io::Result<Vec<u8>> {
+     for _ in 0..LIST_TRIES {
+-        let need = sys::llistxattr(c, &mut []).map_err(io)? as usize;
++        let need = (sys::llistxattr(c, &mut []).map_err(io)? as usize).min(4096);
+         if need == 0 {
+             return Ok(Vec::new());
+         }

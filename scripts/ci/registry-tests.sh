@@ -30,7 +30,10 @@ for line in 'distribution: an index of two platforms resolved through htpasswd' 
     'distribution: an index of two platforms resolved through a bearer token' \
     'distribution: a token ask with no login got 401' \
     'distribution: a blob and a manifest that do not match their digests were refused' \
-    'distribution: no login went over plain HTTP'; do
+    'distribution: no login went over plain HTTP' \
+    'distribution: a ping checked the login of a Basic challenge' \
+    'distribution: a ping checked the login of a Bearer challenge' \
+    'distribution: a ping of an open registry was anonymous'; do
     if ! printf '%s\n' "$out" | grep -qxF "$line"; then
         echo "registry-tests: the run did not say: $line" >&2
         exit 1

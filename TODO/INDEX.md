@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1098 entries: 174 open, 31 partial, 6 blocked, 887 done.**
+**1102 entries: 174 open, 31 partial, 6 blocked, 891 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 252 | 265 |
-| P2 | 73 | 12 | 4 | 474 | 563 |
+| P2 | 73 | 12 | 4 | 478 | 567 |
 | P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 31 | 6 | 887 | 1098 |
+| **All** | 174 | 31 | 6 | 891 | 1102 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1145,3 +1145,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1541](fleet.md) | P1 | S | M8 | feature | done | `pod-actions-store`: the owner and the name of an action match with no case (PodUtils/podrunner#380) |
 | [T-1542](fleet.md) | P1 | S | M8 | feature | done | `pod-actions-store`: `uses: $/PATH` in a composite action is the repository and the ref of that action (PodUtils/podrunner#381) |
 | [T-1550](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the causes of `no_tier_served`, as `no_tier_served_causes` in `status.v1` (PodUtils/podrunner#375) |
+| [T-1580](podvm.md) | P2 | S | M6 | feature | done | `pod-oci`: no `GET /v2/` ping, so `podvm login` checks no password (PodUtils/podvm#692, ask 1) |
+| [T-1581](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: the exit code of a failed spawn of the entry is text, so podvm puts a marker in it (PodUtils/podvm#692, ask 3) |
+| [T-1582](podvm.md) | P2 | S | M6 | feature | done | `pod-rootfs`: the completion writes `/etc/hosts` each time, so an `exec` loses the edits of the payload (PodUtils/podvm#692, ask 4) |
+| [T-1583](podvm.md) | P2 | S | M6 | feature | done | `pod-extract`: no reader of the extended attributes of a path, so podvm keeps its own with a bound of 4096 bytes (PodUtils/podvm#683) |

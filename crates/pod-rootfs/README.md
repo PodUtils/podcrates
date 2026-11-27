@@ -112,7 +112,7 @@ multiarch directory of them (`*-linux-gnu*`), a `ld-musl-*.so.1` or
 | Item | What |
 | --- | --- |
 | `complete(rootfs, &settings, &mut probe) -> Result<Report>` | each fixup, in order; the failure is a root that does not open or a name that cannot be used; with `Settings::upper`, `rootfs` is the lower layer of two |
-| `Settings` | `names`, `host` (the `pod_hostprobe::Settings` of the space message), `container_name`, `add_hosts`, `source_fixup`, `host_cas`, `steps`, `host_bundle`, `host_resolv_conf`, `mounts`, `originals`, `upper` |
+| `Settings` | `names`, `host` (the `pod_hostprobe::Settings` of the space message), `container_name`, `add_hosts`, `keep_existing_hosts` (a regular `/etc/hosts` stays as it is), `source_fixup`, `host_cas`, `steps`, `host_bundle`, `host_resolv_conf`, `mounts`, `originals`, `upper` |
 | `Names` | `tool` (the head comment of each written file), `comment` (before a line that the crate comments out), `apt_drop_in`, `host_ca_marker`, `host_ca_prefix`, `scratch_prefix`; a second run finds the files of the first by these names |
 | `HostBundle` | `path`, `announced_by` (the variable that named it), `bytes`; the caller finds it (`pod_oci::trust::host_bundle` does) |
 | `Report`, `Fixup`, `Step`, `Action`, `Libc`, `IDS` | the record; `Report::{degradations, changed, failed}`; `Action::{word, changed}`; `IDS` lists each id |
