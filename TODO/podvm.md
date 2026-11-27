@@ -3074,13 +3074,13 @@ the whole blob closes that gap.
 
 ## Premise
 
-- Read (this tree): `crates/pod-oci/src/registry.rs:301-348`.
+- Read (this tree): `crates/pod-oci/src/registry.rs:304-351`.
   `Client::blob<W: Write + Restart>` streams into a sink with a
   `Verifier`. `Restart` sets the sink back for a new try (`:40-42`). The
   retry is around the whole transfer (`ATTEMPTS`, `:75`). The doc comment
-  names the proxy that cuts at a round size (`:306-308`) and refuses a
-  resume: `crates/pod-oci/src/registry.rs:310` says "a resume trusts". The
-  review cites the method from `:305`; its doc comment starts at `:301`.
+  names the proxy that cuts at a round size (`:309-311`) and refuses a
+  resume: `crates/pod-oci/src/registry.rs:313` says "a resume trusts". The
+  review cites the method from `:308`; its doc comment starts at `:304`.
 - Read: `crates/pod-oci/src/registry/http.rs:12`: `get` takes an `Accept`
   value only, so a `Range` header needs a new parameter.
   `crates/pod-oci/src/registry/http.rs:128-130` and
@@ -15966,3 +15966,272 @@ guests boot from an initramfs) would copy it.
 cargo test -p pod-guest --all-features --lib -- ext4::
 python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM pod-guest
 ```
+
+# T-1580: `pod-oci`: no `GET /v2/` ping, so `podvm login` checks no password (PodUtils/podvm#692, ask 1)
+
+**Source:** PodUtils/podvm#692 (COORD-266 of podvm, for PodUtils/podvm@T-2070, PodUtils/podvm@T-2079 and PodUtils/podvm@T-2087; author COLLABORATOR), ask 1
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+"`podvm login` stores the credentials and prints "Login Succeeded" with
+no contact to the registry; docker checks them against `/v2/`.
+`pod_oci::registry::Client` at `v0.86.0` has no ping: `get()` is
+`pub(super)`, and only `manifest`, `tags` and `blob` are public; a check
+through `tags()` of a made-up repository gives false refusals (Docker
+Hub answers 401 for a repository that is not there)." The ask:
+`Client::ping(&mut self, endpoint: &str) -> Result<Ping>`: `GET /v2/`
+through the existing flow; a Basic or Bearer challenge answered with the
+`Logins` that was set, with an empty scope; `Ping::Authenticated` or
+`Ping::Anonymous`; `Err` of class `Refused` with the reason of the
+registry on a 401.
+
+## Premise
+
+- Read: PodUtils/podvm#692; `crates/pod-oci/src/registry.rs`,
+  `registry/http.rs` (`get`, `answer_basic`, `token`) and
+  `registry/wire.rs` (`class_of` gives `Refused` for 401 and 403;
+  `registry_message` reads `errors[]`).
+- The token realm of Docker Hub answers a refused login with
+  `{"details":"incorrect username or password"}`, not `errors[]`. Not
+  measured here: the test uses the token server of the crate.
+- The test registry: CNCF distribution 3.1.2
+  (`scripts/ci/registry-tests.sh`), with htpasswd, token auth and, new,
+  no auth.
+
+## Approach
+
+A new file `registry/ping.rs`: `Ping` and `Client::ping`. The ping
+removes the token of the empty scope, so each ping asks again, then calls
+`get("/v2/", endpoint, "", None)`. A private flag `sent_login` of the
+client is set where `answer_basic` or `token` sends a stored login; the
+ping gives `Authenticated` when it is set, else `Anonymous`. `token`
+sends no `scope` parameter for an empty scope. `registry_message` reads a
+`details` body too.
+
+## Prove
+
+```sh
+POD_OCI_TEST_REGISTRY=required POD_OCI_TEST_REGISTRY_BIN=/path/to/registry cargo test -p pod-oci --test distribution
+sh scripts/ci/registry-tests.sh
+cargo test -p pod-oci --all-features
+```
+
+## Done
+
+2026-11-27, commit `2d070845`. `pod_oci::registry::{Client::ping,
+Ping}` as asked. New tests in `crates/pod-oci/tests/distribution.rs`:
+`a_ping_checks_the_login_of_a_basic_challenge` (right login
+`Authenticated`; a wrong password `Refused` with `HTTP 401:
+UNAUTHORIZED: ...`; no login `Refused`),
+`a_ping_checks_the_login_of_a_bearer_challenge` (the token ask has no
+`scope` and carries the login; a second ping asks again; no login
+`Refused` with the reason of the realm) and
+`a_ping_of_an_open_registry_is_anonymous`; `scripts/ci/registry-tests.sh`
+requires their three lines. The test registry takes `Auth::Open`.
+`registry_message` reads `{"details":...}` (test
+`a_registry_error_body_is_read_for_its_message`). With distribution
+3.1.2: 8 passed in `--test distribution`; `cargo test -p pod-oci
+--all-features`: 124 passed; clippy clean. Plants
+`oci-t1580-ping-asks-a-scope` and
+`oci-t1580-ping-basic-not-authenticated` are caught. podvm can drop
+the local check of its `login` (it has no second path for this ask). No
+public item changed its form.
+
+# T-1581: `pod-supervise`: the exit code of a failed spawn of the entry is text, so podvm puts a marker in it (PodUtils/podvm#692, ask 3)
+
+**Source:** PodUtils/podvm#692 (COORD-266 of podvm; author COLLABORATOR), ask 3
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+"`run -d IMAGE /nonexistent` must exit 127 (126 for a command that
+cannot be invoked), as a foreground run and docker do.
+`launcher::start` gives the failure as text with class `Unavailable`, so
+podvm put a marked exit code in the text of the failed spawn and takes it
+out again (`spawn_failure`, `take_code`, `start_coded` in
+`PodUtils/podvm:crates/podvm-supervise/src/launcher.rs`)." The ask: `launcher::start`
+carries the exit code of the entry (or a class that maps to 126 and 127)
+through the ready pipe beside the text.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/launcher.rs` (`start` reads `ok
+  LAUNCHER PAYLOAD` or `err TEXT` from the ready pipe),
+  `launcher/supervise.rs` (the entry's `Err(String)` becomes `err
+  TEXT`), and podvm `main`: `CODE_MARK` (`\u{1}exit=`), `spawn_failure`
+  (`podvm_enter::Error::exit_code`), `take_code` and `start_coded` in
+  `PodUtils/podvm:crates/podvm-supervise/src/launcher.rs` and `src/lib.rs`.
+- No crate of the workspace calls `pod_supervise::start`.
+
+## Approach
+
+A typed error `launcher::EntryFailure { text, code: Option<i32> }`
+(`launcher/entry.rs`), with `From<String>` and `From<&str>`. The entry
+returns `Result<Payload, E>` with `E: Into<EntryFailure>`, so an entry
+that returns `String` builds with no change. The launcher writes `exit
+CODE TEXT` for a failure with a code and `err TEXT` for one without.
+`start` gives a `Failure` of class `Unavailable` whose text is the text
+and whose cause is the `EntryFailure`; `EntryFailure::of(&failure)`
+gives it back.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
+
+## Done
+
+2026-11-27, commit `2d070845`. `pod_supervise::launcher::EntryFailure`
+(`coded`, `of`, `From<String>`, `From<&str>`); `launcher::start`,
+`pod_supervise::start` and the launcher take `E: Into<EntryFailure>`.
+Tests: `launcher::entry::tests::an_entry_failure_crosses_the_ready_pipe_with_its_code`
+(the line and its parse for 127, 126 and no code; a text that starts with
+`exit 127` stays text), and the step
+`an_entry_that_fails_gives_its_text` of `tests/lifecycle.rs`: a real
+spawn of `/nonexistent/program` gives 127 and of `/` gives 126 through
+`pod_supervise::start`, with no code in the text. `cargo test -p
+pod-supervise --all-features`: 47 passed and the steps of `foreground`,
+`lifecycle` and `tree`; clippy clean. Plant
+`supervise-t1581-code-not-on-the-pipe` is caught. podvm drops
+`CODE_MARK`, `spawn_failure`, `take_code` and `start_coded` in
+`PodUtils/podvm:crates/podvm-supervise/src/launcher.rs` and `src/lib.rs`: its `enter`
+returns `Result<Payload, EntryFailure>` with
+`EntryFailure::coded(e.exit_code(), e.to_string())`, and its caller reads
+`EntryFailure::of(&failure)`. An entry that returns `String` builds with
+no change.
+
+# T-1582: `pod-rootfs`: the completion writes `/etc/hosts` each time, so an `exec` loses the edits of the payload (PodUtils/podvm#692, ask 4)
+
+**Source:** PodUtils/podvm#692 (COORD-266 of podvm; author COLLABORATOR), ask 4
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+"The edits of a payload to `/etc/hosts` were lost at the next `exec`:
+`pod_rootfs::complete` writes `/etc/hosts` at each completion, and
+`exec` completes the run's root again. podvm now reads the file before
+the completion and puts its bytes back after
+(`PodUtils/podvm:crates/podvm-complete/src/keep.rs`), so the generated lines show for a
+short time." The ask: a setting of `pod_rootfs::Settings` (for example
+`keep_existing_hosts`) so that `net::hosts` leaves an existing regular
+file alone.
+
+## Premise
+
+- Read: `crates/pod-rootfs/src/net.rs` (`run_hosts` writes through
+  `Root::write`, which replaces a link and never follows it), and podvm's
+  `keep.rs` on `main`: it keeps a regular file only (`Kind::Regular`), and
+  a link is not kept (its test).
+- Not measured: a directory at `etc/hosts` (the write fails, as without
+  the setting).
+
+## Approach
+
+`Settings::keep_existing_hosts: bool`, default `false`. `run_hosts`
+checks the names first, then, with the setting and a regular file at
+`etc/hosts`, gives the row `Unchanged` and writes nothing. Each other
+kind is written as without the setting (call C997).
+
+## Prove
+
+```sh
+cargo test -p pod-rootfs --all-features --lib net::tests::keep_existing_hosts
+cargo test -p pod-rootfs --all-features
+```
+
+## Done
+
+2026-11-27, commit `cba7b71e`. `pod_rootfs::Settings::keep_existing_hosts`.
+Test `net::tests::keep_existing_hosts_leaves_a_regular_file_alone`: a
+regular file (also empty, mode 0600) keeps its bytes and its mode, row
+`Unchanged`, not degraded; without the setting it is rewritten; no file
+is created; a symlink to a file outside the root and one to a file of the
+root are replaced, and neither target changes; a bad added host is
+refused with the setting. `cargo test -p pod-rootfs --all-features`: 91
+passed; clippy clean. Plant `rootfs-t1582-keep-ignored` is caught. podvm
+drops `PodUtils/podvm:crates/podvm-complete/src/keep.rs` and sets the field for the
+completion of an `exec`. A consumer that writes `Settings { .. }` with no
+`..Default::default()` must add the field.
+
+# T-1583: `pod-extract`: no reader of the extended attributes of a path, so podvm keeps its own with a bound of 4096 bytes (PodUtils/podvm#683)
+
+**Source:** PodUtils/podvm#683 (COORD-261 of podvm, for PodUtils/podvm@T-1999; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm reads the extended attributes of a file on disk in two places (the
+import of the incus tier, `PodUtils/podvm:crates/podvm/src/incus/image.rs`, and the root
+disk of the machine tier, `PodUtils/podvm:crates/podvm/src/machine/guest/disk/tree.rs`)
+through `incus::xattrs::on_disk`. "Until today it read the list of names
+into a buffer of 4096 bytes. Where a file had more, it returned an empty
+list with no word ... On tmpfs a file with 60 names of 100 bytes gave 0
+of 60." podvm fixed its copy (`on_disk_readable`). The ask: a reader in a
+podcrates crate (for example `pod_extract::xattr::of_path(path) ->
+io::Result<Vec<(String, Vec<u8>)>>`): the size from `llistxattr(path,
+NULL, 0)`, a new try on `ERANGE`, the list bounded to 64 KiB, each error
+names the path, `ENOTSUP` gives an empty list, a name removed between the
+list and the read (`ENODATA`) is skipped; a table test (no names, a few,
+a list over 4096 bytes, a list over 32 KiB on tmpfs, a missing path).
+
+## Premise
+
+- Read: podvm `main` `PodUtils/podvm:crates/podvm/src/incus/xattrs.rs` (`list_names`,
+  `read_attrs`: libc `llistxattr` and `lgetxattr`, a 64 KiB value
+  buffer, a name that is not UTF-8 is an error);
+  `python3 -I scripts/codegraph.py similar xattr`: `pod-extract::xattr`
+  reads PAX records and sets attributes; `pod-hostprobe::sys` has
+  `fgetxattr`, `fsetxattr` and `lsetxattr`, no list call.
+- Measured on this host (Linux 6.18): ext4 under the temporary directory
+  and tmpfs at `/dev/shm`; tmpfs takes 300 `user.` names of 120 bytes.
+
+## Approach
+
+`pod-hostprobe::sys` takes `llistxattr`, `lgetxattr`, `ERANGE`,
+`ENODATA` and `EOPNOTSUPP` (raw calls, as its other calls).
+`pod_extract::xattr::of_path` (`xattr/on_disk.rs`) reads the list with
+four tries, bounds it to `NAMES_MAX` and each value to `VALUE_MAX` (the
+constants of the module), and gives the attributes in the order of the
+file system. The home and the targets: call C998.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --lib xattr::on_disk
+cargo test -p pod-hostprobe --all-features
+```
+
+## Done
+
+2026-11-27, commit `90c2cede`. `pod_extract::xattr::of_path`, and
+`pod_hostprobe::sys::{llistxattr, lgetxattr, ERANGE, ENODATA,
+EOPNOTSUPP}`. Tests in `crates/pod-extract/src/xattr/on_disk/tests.rs`:
+`the_attributes_of_a_path_are_read_in_full_for_each_size_of_the_list`
+(no names, 3 names, 60 names of 100 bytes, 300 names of 120 bytes on
+`/dev/shm`; a row with no directory that holds it is a skip line with the
+reason), `a_missing_path_is_not_found_with_its_name` and
+`a_symlink_is_read_as_the_link`. All rows ran here. `cargo test -p
+pod-extract --all-features`: 173 passed; `-p pod-hostprobe`: 210 passed;
+clippy clean. Plant `extract-t1583-names-in-4096-bytes` is caught. Not
+proved by a test: the new try on `ERANGE` and the skip on `ENODATA` (a
+race). podvm drops `on_disk_readable`, `list_names` and `read_attrs` of
+`PodUtils/podvm:crates/podvm/src/incus/xattrs.rs` (it keeps its filter of names, its
+owner-bit read again and `v2_of`).

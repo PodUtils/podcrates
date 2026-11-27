@@ -1,0 +1,12 @@
+diff --git a/crates/pod-oci/src/registry/http.rs b/crates/pod-oci/src/registry/http.rs
+index 676b6532..32568d21 100644
+--- a/crates/pod-oci/src/registry/http.rs
++++ b/crates/pod-oci/src/registry/http.rs
+@@ -174,7 +174,6 @@ impl Client {
+             }
+         };
+         let header = crate::credentials::basic_header(&cred);
+-        self.sent_login = true;
+         match self.send(url, scope, accept, Some(&header), verify) {
+             Ok(r) => Ok(Attempt::Done(Box::new(r))),
+             Err(e) => Err(status_error(url, e)),

@@ -1,0 +1,6 @@
+# pod-oci: a ping that the stored Basic login answered says Anonymous (T-1580).
+ENTRY=T-1580
+GROUP=oci
+EXPECT='test a_ping_checks_the_login_of_a_basic_challenge \.\.\. FAILED'
+RUN='sh scripts/ci/registry-tests.sh'
+LIMIT=1800

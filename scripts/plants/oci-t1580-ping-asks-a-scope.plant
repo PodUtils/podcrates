@@ -1,0 +1,6 @@
+# pod-oci: the ping asks the token realm for a scope; a login check asks for no access (T-1580).
+ENTRY=T-1580
+GROUP=oci
+EXPECT='a scope in the ask'
+RUN='sh scripts/ci/registry-tests.sh'
+LIMIT=1800

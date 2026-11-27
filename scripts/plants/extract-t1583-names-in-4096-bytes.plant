@@ -1,0 +1,6 @@
+# pod-extract: the reader of the attributes of a path reads the names into 4096 bytes (T-1583).
+ENTRY=T-1583
+GROUP=extract
+EXPECT='test xattr::on_disk::tests::the_attributes_of_a_path_are_read_in_full_for_each_size_of_the_list \.\.\. FAILED'
+RUN='cargo test -p pod-extract --all-features --lib xattr::on_disk'
+LIMIT=900

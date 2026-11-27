@@ -1,0 +1,6 @@
+# pod-supervise: the exit code of a failed entry does not cross the ready pipe (T-1581).
+ENTRY=T-1581
+GROUP=supervise
+EXPECT='test launcher::entry::tests::an_entry_failure_crosses_the_ready_pipe_with_its_code \.\.\. FAILED'
+RUN='cargo test -p pod-supervise --all-features --lib launcher::entry'
+LIMIT=900
