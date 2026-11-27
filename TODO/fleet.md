@@ -10238,7 +10238,7 @@ written again; the id stays `v1`, with one row `added` (`next`) in
 and `status::tests::a_status_with_no_causes_writes_no_list_and_causes_need_the_flag`;
 plant `job-t1550-no-tier-causes-need-the-flag`. Consumer: a reader of an
 old status reads it (the field has a default). The one `Status { .. }`
-literal of podrunner is `crates/podrunner-slots/src/status.rs`
+literal of podrunner is `PodUtils/podrunner:crates/podrunner-slots/src/status.rs`
 (`Slots::status`): it needs `no_tier_served_causes` (`Vec::new()` until
 podrunner fills it), as `Status` has no `Default`. The other uses of the
 flag in podrunner read JSON and do not break.
