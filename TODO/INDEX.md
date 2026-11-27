@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1106 entries: 174 open, 31 partial, 6 blocked, 895 done.**
+**1113 entries: 174 open, 31 partial, 6 blocked, 902 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 255 | 268 |
-| P2 | 73 | 12 | 4 | 479 | 568 |
-| P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 31 | 6 | 895 | 1106 |
+| P1 | 4 | 9 | 0 | 258 | 271 |
+| P2 | 73 | 12 | 4 | 482 | 571 |
+| P3 | 97 | 10 | 2 | 160 | 269 |
+| **All** | 174 | 31 | 6 | 902 | 1113 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1153,3 +1153,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1583](podvm.md) | P2 | S | M6 | feature | done | `pod-extract`: no reader of the extended attributes of a path, so podvm keeps its own with a bound of 4096 bytes (PodUtils/podvm#683) |
 | [T-1600](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`, `pod-relay`: two tests take the error codes and the words of Linux, and fail on Windows and macOS |
 | [T-1601](relay.md) | P2 | S | M2 | defect | done | `pod-session`: `a_cap_of_1_mib_takes_a_smaller_window` fails on a target of 32 bits: `after_mark(usize::MAX)` does not saturate there |
+| [T-1635](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a join holds the descriptors of the caller and stays dumpable in the user namespace of the payload, so a payload of uid 0 opens the host's root through `/proc/PID/fd` |
+| [T-1636](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a payload of kuid 0 under the lock writes `/proc/sys` and `/proc/sysrq-trigger` of the host |
+| [T-1637](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the fallback of the namespace rung to chroot runs a payload of uid 0 with no pivot and no lock, and the image chooses it with no `/tmp` |
+| [T-1638](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: host root cannot raise a hard limit of the payload after the lock |
+| [T-1639](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the read-only root keeps `/dev` of the image writable on the disk |
+| [T-1640](podvm.md) | P2 | S | M6 | docs | done | `pod-enter`: more hosts refuse the pivot than call C991 names |
+| [T-1641](podvm.md) | P3 | S | M6 | defect | done | `pod-enter`: the small defects of the lock and of the read-only root (EINTR, SIGPIPE, the proc of the maps, the ambient set, the recursive bind) and the cases that the tests lack |

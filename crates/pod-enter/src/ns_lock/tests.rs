@@ -76,3 +76,52 @@ fn the_pipes_exist_only_for_the_parent_writer() {
     pipes.close_child_ends();
     pipes.close_parent_ends();
 }
+
+/// A call that a signal stops before it moved a byte runs again
+/// (T-1641).
+#[test]
+fn a_call_runs_again_after_eintr() {
+    let mut left = 2;
+    let r = retry(|| {
+        if left > 0 {
+            left -= 1;
+            Err(sys::EINTR)
+        } else {
+            Ok(7)
+        }
+    });
+    assert_eq!((r, left), (Ok(7), 0));
+    assert_eq!(retry(|| Err(sys::EBADF)), Err(sys::EBADF));
+}
+
+/// The answer of the parent to a child that ended after its ask: the read
+/// end is closed, and the write raises no SIGPIPE in a process whose
+/// action of SIGPIPE is the default (it ends such a process). A child of a
+/// fork takes the default action and writes the answer; it must exit 0
+/// (T-1641).
+#[test]
+fn an_answer_to_a_child_that_ended_raises_no_sigpipe() {
+    let mut p = [0i32; 2];
+    sys::pipe2(&mut p, sys::O_CLOEXEC).unwrap();
+    let (r, w) = (i64::from(p[0]), i64::from(p[1]));
+    let _ = sys::close(r);
+    match unsafe { sys::clone_fork(sys::SIGCHLD) } {
+        Ok(0) => {
+            // A zero action is the default one, on each layout of the
+            // kernel's `struct sigaction`.
+            let default = [0u64; 5];
+            let action = default.as_ptr() as u64;
+            let _ =
+                unsafe { sys::sys(sys::SYS_RT_SIGACTION, [sys::SIGPIPE, action, 0, sys::SIGSET_BYTES as u64, 0, 0]) };
+            answer_with_no_sigpipe(w, &[0, 0, 0]);
+            sys::exit_group(0)
+        }
+        Ok(pid) => {
+            let _ = sys::close(w);
+            let mut st = 0i32;
+            sys::wait4(pid, &mut st).unwrap();
+            assert_eq!(st, 0, "the child ended with the status {st:#x}, not with exit 0");
+        }
+        Err(e) => panic!("fork: {e:?}"),
+    }
+}

@@ -1,0 +1,8 @@
+# pod-enter: the bind of a read-only root is recursive and its read-only
+# remount is not, so a mount under the tree stays writable (T-1641, the
+# review of PodUtils/podvm#695).
+ENTRY=T-1641
+GROUP=confine
+EXPECT='a read-only root hides a mount under its tree, with no PID namespace \.\.\. FAILED: write:/sub/made gave 0'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

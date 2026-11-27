@@ -1,0 +1,46 @@
+diff --git a/crates/pod-enter/src/ns_devfs.rs b/crates/pod-enter/src/ns_devfs.rs
+index a150bfd6..8c792092 100644
+--- a/crates/pod-enter/src/ns_devfs.rs
++++ b/crates/pod-enter/src/ns_devfs.rs
+@@ -80,16 +80,9 @@ impl DevFs {
+     /// it holds. `Err` gives the step, the errno, and the part (1 the mount
+     /// point, 2 the tmpfs, 3 `pts`, 4 `shm`, 5 a link). Async-signal-safe.
+     pub(crate) fn mount(&self) -> std::result::Result<(), (u8, Errno, u8)> {
+-        let at = |n: u8| move |e| (NS_DEV_KEEP_STEP, e, n);
+-        let fd = point_dir(&self.dev).map_err(at(1))?;
+-        let mounted = mount_data_on_fd(&self.tmpfs, fd, &self.tmpfs, sys::MS_NOSUID | sys::MS_NOEXEC, self.mode.ptr());
+-        let _ = sys::close(fd);
+-        mounted.map_err(at(2))?;
+-        // A new open crosses into the tmpfs.
+-        let top = point_dir(&self.dev).map_err(at(2))?;
+-        let out = self.fill(top);
+-        let _ = sys::close(top);
+-        out
++        let empty = sys::cempty();
++        let flags = sys::MS_BIND | sys::MS_REC;
++        sys::mount(&self.dev, &self.dev, &empty, flags).map(drop).map_err(|e| (NS_DEV_KEEP_STEP, e, 0))
+     }
+ 
+     fn fill(&self, top: i64) -> std::result::Result<(), (u8, Errno, u8)> {
+@@ -111,7 +104,5 @@ impl DevFs {
+     /// In the child, after the optional mounts, where no user namespace of
+     /// the rung binds the devices: each bind of a device. A refused one
+     /// writes its line. Async-signal-safe.
+-    pub(crate) fn bind_devices(&self) {
+-        crate::ns_dev_bind::bind_each(&self.devices);
+-    }
++    pub(crate) fn bind_devices(&self) {}
+ }
+diff --git a/crates/pod-enter/src/ns_user.rs b/crates/pod-enter/src/ns_user.rs
+index c807a9c9..111b6da5 100644
+--- a/crates/pod-enter/src/ns_user.rs
++++ b/crates/pod-enter/src/ns_user.rs
+@@ -177,7 +177,7 @@ pub(crate) fn spawn_own(root: &RootDir, plan: &Plan, mount: &mut NsMount, banner
+     match spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), banner, err) {
+         Err(Error::NsSetup { step, errno }) if calls_for_user_namespace(step, errno) => {
+             mount.user = Some(Maps::of_caller_inside(ids));
+-            mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
++            mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, false));
+             let result = spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), false, err);
+             Own { result, first: Some((step, errno)) }
+         }

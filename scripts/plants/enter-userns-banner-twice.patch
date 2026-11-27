@@ -5,7 +5,7 @@ index 8117efd..d518460 100644
 @@ -125,7 +125,7 @@ pub(crate) fn spawn_own(root: &RootDir, plan: &Plan, mount: &mut NsMount, banner
          Err(Error::NsSetup { step, errno }) if calls_for_user_namespace(step, errno) => {
              mount.user = Some(Maps::of_caller_inside(ids));
-             mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names));
+             mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
 -            let result = spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), false, err);
 +            let result = spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), true, err);
              Own { result, first: Some((step, errno)) }

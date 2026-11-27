@@ -1,0 +1,8 @@
+# pod-enter: an image with no /tmp, or whose /tmp is a link, sends the
+# namespace rung to chroot, and a payload of uid 0 runs there with no pivot
+# and no lock (T-1637, the review of PodUtils/podvm#695).
+ENTRY=T-1637
+GROUP=confine
+EXPECT='an image with no /tmp runs locked, with no PID namespace \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

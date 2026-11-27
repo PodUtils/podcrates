@@ -3,9 +3,10 @@
 //! rung to the change of root (`ns_root`). The order: the user namespace
 //! where the rung needs one (`ns_user`), the mount namespace with `/`
 //! private, the root mount (the overlay, or a bind of the root onto
-//! itself), the tmpfs on `/tmp`, the optional mounts, the tmpfs mounts and
-//! the volumes of the plan, the host name, the read-only remount of the
-//! root, and the pivot. The nested user namespace of the payload comes
+//! itself, and the tmpfs of `/dev` of a read-only root), the tmpfs on
+//! `/tmp`, the optional mounts, the masks of `/proc` for a payload of kuid
+//! 0, the tmpfs mounts and the volumes of the plan, the host name, the
+//! read-only remount of the root, and the pivot. The nested user namespace of the payload comes
 //! after it (`ns_lock`).
 
 use pod_hostprobe::sys::{self, CBuf, Errno};
@@ -71,11 +72,17 @@ impl<'a> OwnSteps<'a> {
         if let Some(o) = &m.overlay {
             crate::ns_overlay::mount(o, self.rootpath, m.user.is_some()).map_err(one)?;
         }
-        self.root.bind(m.overlay.is_some()).map_err(one)?;
-        sys::mount(&self.tmpfs, &m.tmp_target, &self.tmpfs, 0).map_err(|e| (9, e, 0))?;
+        self.root.bind(m.overlay.is_some())?;
+        // `/tmp` of the image: made where it is missing, with no link
+        // followed, so the image cannot send the rung to chroot (T-1637).
+        let tmp = crate::ns_devfs::point_dir(&m.tmp_target).map_err(|e| (crate::ns_root::NS_TMP_POINT_STEP, e, 0))?;
+        let mounted = crate::ns_dev_bind::mount_data_on_fd(&self.tmpfs, tmp, &self.tmpfs, 0, 0);
+        let _ = sys::close(tmp);
+        mounted.map_err(|e| (9, e, 0))?;
         // `/proc`, `/dev/pts` and the host's devices: a refused one writes
         // one line and the rung goes on.
         crate::ns_optional::mount_each(m);
+        self.root.after_optional(m.user.is_some())?;
         // The volumes of the plan, after each mount of the rung: a refused
         // one stops the payload (`ns_volume`).
         crate::ns_volume::bind_each(self.volumes)?;

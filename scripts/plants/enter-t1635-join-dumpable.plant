@@ -1,0 +1,9 @@
+# pod-enter: the child of a join stays dumpable after its setns, and takes
+# the root of the caller as its working directory: the payload of the run
+# walks from /proc/PID/fd of the child to a host file (T-1635, the review of
+# PodUtils/podvm#695).
+ENTRY=T-1635
+GROUP=confine
+EXPECT='a join is not dumpable between its join and its exec, with no PID namespace \.\.\. FAILED: the payload of the run walked'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

@@ -97,7 +97,7 @@ fn the_binds_of_an_image() {
     std::fs::write(root.join("dev/urandom"), b"x").unwrap();
     std::os::unix::fs::symlink("/etc/hostname", root.join("dev/zero")).unwrap();
     let dir = crate::RootDir::open(root.to_str().unwrap()).unwrap();
-    let d = devices(&dir, &Names::DEFAULT);
+    let d = devices(&dir, &Names::DEFAULT, false);
     let host = |n: &str| host_node(&CBuf::new(&format!("/dev/{n}")).unwrap()).is_some();
     let bound: Vec<&str> = d.binds.iter().map(|b| b.label).collect();
     let skipped: Vec<String> = d.skipped.iter().map(|l| String::from_utf8_lossy(l).into_owned()).collect();
@@ -113,9 +113,17 @@ fn the_binds_of_an_image() {
     // `/dev` as a link: one line, and no bind.
     std::fs::remove_dir_all(root.join("dev")).unwrap();
     std::os::unix::fs::symlink("/dev", root.join("dev")).unwrap();
-    let d = devices(&dir, &Names::DEFAULT);
+    let d = devices(&dir, &Names::DEFAULT, false);
     assert!(d.binds.is_empty());
     assert_eq!(d.skipped, vec![no_dev_line(&Names::DEFAULT).into_bytes()]);
+    // The tmpfs of a read-only root (T-1639): each path is missing there,
+    // whatever the image holds, so each node of the host takes a bind.
+    let d = devices(&dir, &Names::DEFAULT, true);
+    assert!(d.skipped.iter().all(|l| String::from_utf8_lossy(l).contains("not a character device")));
+    for b in &d.binds {
+        assert!(b.create, "{}", b.label);
+    }
+    assert_eq!(d.binds.len(), DEVICES.iter().filter(|n| host(n)).count());
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -128,9 +136,9 @@ fn the_binds_of_ptmx() {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("dev")).unwrap();
     let dir = crate::RootDir::open(root.to_str().unwrap()).unwrap();
-    assert!(devices(&dir, &Names::DEFAULT).ptmx.is_none(), "no /dev/pts: no bind of /dev/ptmx");
+    assert!(devices(&dir, &Names::DEFAULT, false).ptmx.is_none(), "no /dev/pts: no bind of /dev/ptmx");
     std::fs::create_dir_all(root.join("dev/pts")).unwrap();
-    let d = devices(&dir, &Names::DEFAULT);
+    let d = devices(&dir, &Names::DEFAULT, false);
     let p = d.ptmx.expect("a /dev/pts: a bind of /dev/ptmx");
     let own = p.as_ref().expect("the ptmx of the devpts on /dev/pts");
     assert_eq!(text(&own.source), format!("{}/dev/pts/ptmx", root.display()));
@@ -139,7 +147,7 @@ fn the_binds_of_ptmx() {
     let line = String::from_utf8_lossy(&own.bind_refused).into_owned();
     assert!(line.contains("/dev/ptmx: binding the ptmx of the devpts on /dev/pts failed"), "{line}");
     std::os::unix::fs::symlink("pts/ptmx", root.join("dev/ptmx")).unwrap();
-    let p = devices(&dir, &Names::DEFAULT).ptmx.unwrap();
+    let p = devices(&dir, &Names::DEFAULT, false).ptmx.unwrap();
     let line = String::from_utf8_lossy(p.as_ref().err().expect("no bind over a link")).into_owned();
     assert!(line.contains("/dev/ptmx: the image holds a symbolic link"), "{line}");
     let _ = std::fs::remove_dir_all(&root);

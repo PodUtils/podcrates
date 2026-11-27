@@ -1,0 +1,8 @@
+# pod-enter: a payload of uid 0 takes the fallback of the namespace rung
+# to chroot, with no pivot and no lock, after a refused unshare (T-1637,
+# the review of PodUtils/podvm#695).
+ENTRY=T-1637
+GROUP=confine
+EXPECT='a payload of uid 0 refuses the fallback to chroot, with no PID namespace \.\.\. FAILED: the payload ran on the chroot rung'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

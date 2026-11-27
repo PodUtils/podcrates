@@ -1,28 +1,20 @@
-diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
---- a/crates/pod-enter/src/launch.rs
-+++ b/crates/pod-enter/src/launch.rs
-@@ -423,23 +423,11 @@
-                 sys::exit_group(NOT_FOUND)
-             }
-             let mut last = sys::ENOENT;
--            let mut refused = None;
-             for c in &candidates {
-                 if let Err(e) = unsafe { sys::execve(c, argv.as_ptr(), envp.as_ptr()) } {
--                    // As `execvp`: a file that was found and refused is the
--                    // answer, also when a later path is absent. Only
--                    // `EACCES` lets the search go on.
--                    if e.exec_refused() {
--                        refused = Some(e);
--                        if e != sys::EACCES {
--                            break;
--                        }
--                    } else {
--                        last = e;
--                    }
-+                    last = e;
-                 }
-             }
--            let last = refused.unwrap_or(last);
-             // Each candidate failed. The parent reads the errno and gives
-             // 126 or 127, the codes of the shell and of docker.
-             let msg = [4u8, (last.0 & 0xff) as u8, ((last.0 >> 8) & 0xff) as u8, 0];
+diff --git a/crates/pod-enter/src/status.rs b/crates/pod-enter/src/status.rs
+index 3eee48b8..de744575 100644
+--- a/crates/pod-enter/src/status.rs
++++ b/crates/pod-enter/src/status.rs
+@@ -29,14 +29,7 @@ pub(crate) unsafe fn exec_each(candidates: &[sys::CBuf], argv: *const *const u8,
+     for c in candidates {
+         // SAFETY: the caller gives the two arrays.
+         if let Err(e) = unsafe { sys::execve(c, argv, envp) } {
+-            if e.exec_refused() {
+-                refused = Some(e);
+-                if e != sys::EACCES {
+-                    break;
+-                }
+-            } else {
+-                last = e;
+-            }
++            last = e;
+         }
+     }
+     refused.unwrap_or(last)

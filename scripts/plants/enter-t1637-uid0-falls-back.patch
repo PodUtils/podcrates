@@ -1,0 +1,22 @@
+diff --git a/crates/pod-enter/src/entry.rs b/crates/pod-enter/src/entry.rs
+index bef1b172..b076514e 100644
+--- a/crates/pod-enter/src/entry.rs
++++ b/crates/pod-enter/src/entry.rs
+@@ -337,17 +337,6 @@ pub(crate) fn namespace_entry(root: &RootDir, plan: &Plan, banner: bool, err: &m
+         if let Some(mount) = crate::ns_volume::first_mount(plan) {
+             return Err(Error::runtime(Class::Unsupported, format!("{mount} needs the namespace rung, and {cause}")));
+         }
+-        // Nor a payload of uid 0: with no pivot and no lock it leaves the
+-        // tree by the way out of a `chroot(2)` (T-1637).
+-        if crate::ns_lock::chroot_payload_is_root(plan)? {
+-            return Err(Error::runtime(
+-                Class::Unsupported,
+-                format!(
+-                    "a payload of uid 0 needs the pivot and the lock of the namespace rung, and {cause}; it does not \
+-                     run on the chroot rung"
+-                ),
+-            ));
+-        }
+         let _ = writeln!(err, "{}", ns_fallback_line(names, cause));
+         spawn_with(root, plan, ENTERED_RUNG.word(), None, None, None, None, banner, err)
+     };
