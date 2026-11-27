@@ -75,9 +75,11 @@ pub struct Plan {
     /// 0 drops each capability of the payload. A caller that is uid 0 of a
     /// user namespace that is not the initial one gets them on each entry
     /// with a chroot through a nested user namespace (`<uid> 0 1`), after
-    /// the mounts and before the root change. A host root (the initial
-    /// namespace), a join of a run (the map of the run holds) and the entry
-    /// with no chroot keep the ids of the caller. `u32::MAX` is refused
+    /// the mounts. A host root (the initial namespace), a join of a run (the
+    /// map of the run holds) and the entry with no chroot keep the ids of
+    /// the caller. With no ids, a payload of uid 0 of the namespace rung
+    /// gets a nested user namespace too, which locks the mounts of the rung
+    /// (`ns_lock`). `u32::MAX` is refused
     /// before the fork: the kernel maps no such id.
     pub userns_ids: Option<(u32, u32)>,
     /// A PID namespace of the payload on the namespace rung (`ns_pid`): a

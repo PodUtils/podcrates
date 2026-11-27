@@ -19,8 +19,17 @@ The entries:
   `proc` (`nosuid`, `nodev`, `noexec`) on the `/proc` of the image where
   that directory exists (`ns_proc_target`), a bind of the host's
   `/dev/pts` on the `/dev/pts` of the image where that directory exists
-  (`ns_pts_target`, so `ttyname` of a pty finds its path), a chroot by path with a device
-  and inode check against the descriptor. A failure of the setup enters
+  (`ns_pts_target`, so `ttyname` of a pty finds its path), and the change
+  of root with `pivot_root(2)` (`ns_root`, PodUtils/podvm#695): right after
+  `/` is private, a bind of the root onto itself (an overlay root is a
+  mount already), each mount of the rung on top of it, then `chdir` to the
+  root, `pivot_root(".", ".")` and a detach of the old root, with a device
+  and inode check against the descriptor. The mount namespace of the
+  payload then holds no path of the host: a way out of a `chroot(2)` of the
+  payload ends at the root of the image. The bind, the pivot and the detach
+  are setup steps (`NS_ROOT_BIND_STEP` 53, `NS_PIVOT_STEP` 54,
+  `NS_OLD_ROOT_STEP` 55; a host whose root is the initial ramfs refuses the
+  pivot). A failure of the setup enters
   chroot and names the fallback on the error writer. A refused proc mount
   or bind of `/dev/pts` does not stop the rung: the child writes one line
   to the payload's standard error (`ns_refused_line`), and the payload
@@ -225,6 +234,37 @@ The entries:
   holds passes, and a path that it removes is a refusal by name before
   the fork. A join of an overlay run reads the same view.
   `Upper::Tmpfs` starts empty: the checks read the lower layer.
+* The lock of the mounts of the namespace rung (`ns_lock`,
+  PodUtils/podvm#695): on each entry of the rung where the payload is uid
+  0 (the user namespace of the rung, uid 0 of a user namespace of the
+  caller with no ids in the plan, host root), the child makes a nested
+  user namespace after the pivot, with the identity of each line of the
+  outer maps, then a mount namespace in it. The kernel copies the mounts
+  into a user namespace with less privilege and locks them: the payload
+  gets `EPERM` on a remount that clears `ro`, `nosuid`, `nodev` or `noexec`
+  and on a remount of a tmpfs with another size, and `EINVAL` on an
+  unmount of a mount of the rung. The child writes a map of one id itself
+  (`deny` into `setgroups`); the parent of the fork writes each other map
+  (host root, a subordinate range), as it stays in the outer namespace
+  with `CAP_SETUID`, and `setgroups` stays as it is. A descriptor of
+  `/proc/self` opens before the pivot for the maps. With the PID namespace,
+  the init makes the nested namespace before it forks the payload. A refused
+  `unshare(CLONE_NEWUSER)` of host root is a setup step
+  (`NS_LOCK_USER_STEP` 58); each other refused step stops the payload with
+  `Error::Runtime` (37 to 40, and `NS_NESTED_NS_STEP` 59 for the mount
+  namespace). For host root the payload holds no capability of the initial
+  user namespace (call C990 of `docs/decisions.md`).
+* The read-only root of the namespace rung (`Plan::read_only_root`,
+  `ns_root`, PodUtils/podvm#695): after the bind of the root, a bind of
+  `/dev` of the tree onto itself where it is a directory (it stays
+  writable), and after each mount of the rung a remount of the root
+  `MS_REMOUNT | MS_BIND | MS_RDONLY` with `volume_remount_flags`, then a
+  check of `ST_RDONLY`. A refusal (`NS_READ_ONLY_STEP` 56,
+  `NS_DEV_KEEP_STEP` 57) stops the payload, never a writable fallback.
+  `/tmp`, the volumes that are not `read_only` and the tmpfs mounts of the
+  plan stay writable. Each entry with no mount namespace of its own
+  refuses the plan, and the namespace rung does not fall back to chroot
+  with it; a join lands on the root of the run.
 * The PID namespace of the namespace rung (`Plan::pid_namespace`,
   `ns_pid`): the entry clones its child with `CLONE_NEWPID`, and with
   `CLONE_NEWUSER` where the rung makes a user namespace, so that the user
@@ -242,8 +282,15 @@ The entries:
   does. Each other entry refuses the plan, and the namespace rung does not
   fall back to chroot with it.
 * The joined entry (`spawn_joined`, for an exec): `setns` on the pidfd of
-  a running payload of the namespace rung joins its mount namespace, then
-  the chroot by path and the check of the rung. Where the payload is in a
+  a running payload of the namespace rung joins its mount namespace. The
+  join sets the root of that namespace, which is the root of the run after
+  its pivot; a run with no pivot takes the chroot by path. Then the check
+  of the rung. Where the owner of the mount namespace of the run
+  (`NS_GET_USERNS` of `/proc/PID/ns/mnt`) is neither the user namespace of
+  the payload nor the one of the caller, the child joins it first
+  (`mount_owner`, `NS_JOIN_OWNER_STEP` 60): the kernel checks
+  `CAP_SYS_ADMIN` over that owner with the credentials from before the
+  call. Where the payload is in a
   user namespace that is not the one of the caller (`ns_user`), one call
   joins both (`setns(pidfd, CLONE_NEWUSER | CLONE_NEWNS)`,
   `NS_JOIN_USER_STEP` 27): the owner of that user namespace holds each
@@ -403,12 +450,12 @@ each entry takes; the payload owns the standard output.
 | Item | What |
 | --- | --- |
 | `Names` | `product`, `mode_request`, `mode_active`, `cache`, `maps`, `lib_path`, `exec_table`, `write_table`, `device_spec`, `device_fds`, `cache_marker`, `memfd_label`, `reserved` (the guest paths that the interposer of the caller never rewrites; `Maps::new` refuses a volume under one). `Names::DEFAULT` gives `pod-enter`, `POD_ENTER_MODE`, `POD_ENTER_ACTIVE_MODE`, `POD_ENTER_CACHE`, `POD_ENTER_MAPS`, `POD_ENTER_LIB_PATH`, `POD_ENTER_EXEC_TABLE`, `POD_ENTER_WRITE_TABLE`, `POD_ENTER_DEVICE_SPEC`, `POD_ENTER_DEVICE_FDS`, `.pod-enter-cache-complete`, `pod-enter-payload`, no reserved path |
-| `Plan { argv, env, working_dir, fds, banner, path_dirs, names, limits, no_new_privs, die_with_parent, confine, hostname, volumes, tmpfs, userns_ids, pid_namespace, relay_title }`, `Program`, `VolumeBind { host, guest, read_only, host_base }`, `TmpfsMount { guest, bytes }` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}`; `confine: Option<pod_confine::Spec>` (guest paths on a rung with a chroot, host paths on the entry with no chroot); `hostname: Option<String>` (the namespace rung enters a UTS namespace and sets it; each other entry refuses a plan with a name, and the rung does not fall back to chroot with one); `volumes: Vec<VolumeBind>` (the namespace rung binds each one, in order; each entry with no mount namespace refuses a plan with one, a join binds none, and the rung does not fall back to chroot with one); `tmpfs: Vec<TmpfsMount>` (the namespace rung mounts each one with its byte limit, in order, before the volumes; the same refusals as a volume, and a join mounts none); `userns_ids: Option<(u32, u32)>` (the uid and the gid of the payload in the user namespace of the rung; `None` is 0); `relay_title: Option<String>` (the command line and the name of the init and of the relay of a PID namespace; `None` is `names.product`) |
+| `Plan { argv, env, working_dir, fds, banner, path_dirs, names, limits, no_new_privs, die_with_parent, confine, hostname, volumes, tmpfs, userns_ids, pid_namespace, relay_title, read_only_root }`, `Program`, `VolumeBind { host, guest, read_only, host_base }`, `TmpfsMount { guest, bytes }` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}`; `confine: Option<pod_confine::Spec>` (guest paths on a rung with a chroot, host paths on the entry with no chroot); `hostname: Option<String>` (the namespace rung enters a UTS namespace and sets it; each other entry refuses a plan with a name, and the rung does not fall back to chroot with one); `volumes: Vec<VolumeBind>` (the namespace rung binds each one, in order; each entry with no mount namespace refuses a plan with one, a join binds none, and the rung does not fall back to chroot with one); `tmpfs: Vec<TmpfsMount>` (the namespace rung mounts each one with its byte limit, in order, before the volumes; the same refusals as a volume, and a join mounts none); `userns_ids: Option<(u32, u32)>` (the uid and the gid of the payload in the user namespace of the rung; `None` is 0); `read_only_root: bool` (the namespace rung remounts the root read-only after its mounts; each other entry refuses it, and a join lands on the root of the run); `relay_title: Option<String>` (the command line and the name of the init and of the relay of a PID namespace; `None` is `names.product`) |
 | `title` | `hide(title)` (one thread; a `Saved`), `restore(&saved)`, `blank_in_place` (unsafe: the process reads no argument and no variable again), `Map`, `map_of`, `titled`, `Refused`: the title and the empty environment of a process of the caller, for podvm's own processes in the namespaces of a payload |
 | `limits` | `Limit { resource, soft, hard }`, `Resource` (`from_word` of docker's `--ulimit` word, `word`, `number` of the kernel of this architecture, `name`), `INFINITY`, `MOST` (64): the child of each entry sets each limit (`prlimit64` on itself) and then `PR_SET_NO_NEW_PRIVS` where `Plan::no_new_privs` asks, after the root change and the `chdir`, before the exec; a refused call stops the payload and is named (`setrlimit(RLIMIT_NOFILE): EPERM`); `repeated` names the first resource that a list gives two times, and each entry refuses such a plan before the fork with `Error::LimitTwice`: the caller coalesces first (docker keeps the last value) |
 | `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload (a passed descriptor onto the number of the root or of the memfd is refused before the fork; the readiness pipe moves clear of each passed number, and the child opens the paths of the rules of the confinement after the passes; a descriptor passed onto its own number loses its close-on-exec flag, so the payload holds it); a started payload (`wait`, `wait_forwarding`, `wait_bounded`); `WAIT_FORWARDED`, the signals that `wait_forwarding` and the init of `Plan::pid_namespace` give to the payload: SIGHUP, SIGINT, SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR, as docker's `--sig-proxy` with no tty (SIGINT and SIGQUIT only from a process, as a terminal sends them to the process group of the payload too); each forward is a line on `err`. The list is `pod_hostprobe::sys::PROXIED_SIGNALS`. `wait_forwarding` blocks the list in its own thread only: each other thread of the process must block it (`block_forwarded`, at the start of the thread or around its spawn; also before the start of the payload: the child of the entry sets an empty mask before its `execve`; `std::process::Command` of Rust passes the mask of its caller), or a signal of the list ends the process and the payload stays |
 | `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_namespace_root`, `run_namespace_root`, `spawn_joined`, `spawn_joined_root`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards each signal of `WAIT_FORWARDED`. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
-| `joinable(pidfd)`, `Member { pid, pidfd }`, `ids_of(text, key)`, `fdinfo_pid`, `other_namespace`, `other_user_namespace` | the process that a join opens: `joinable` gives the payload of the run (pid 2 of its PID namespace, a pid of `/proc` and an owned pidfd) where `pidfd` names the init of a PID namespace whose namespaces this process cannot open, else `None` (join the process of `pidfd`); `spawn_joined` calls it. `ids_of` reads the numbers of a line of `/proc` (`NSpid`, `PPid`) |
+| `joinable(pidfd)`, `Member { pid, pidfd }`, `ids_of(text, key)`, `fdinfo_pid`, `other_namespace`, `other_user_namespace`, `mount_owner(pidfd)`, `NS_JOIN_OWNER_STEP` | the process that a join opens, and the owner of its mount namespace that the join enters first where it is another user namespace (`None` else): `joinable` gives the payload of the run (pid 2 of its PID namespace, a pid of `/proc` and an owned pidfd) where `pidfd` names the init of a PID namespace whose namespaces this process cannot open, else `None` (join the process of `pidfd`); `spawn_joined` calls it. `ids_of` reads the numbers of a line of `/proc` (`NSpid`, `PPid`) |
 | `Root` (`Tree(&RootDir)`, `Overlay { lower, upper }`, `dir`), `Upper` (`Tmpfs { size }`, 0 is the default of the kernel; `Dir { upper, work }`, both absolute), `overlay_escape`, `overlay_options`, `USERXATTR`, `OVERLAY_OPTIONS_MOST` (4095: longer options, with `USERXATTR`, are a refusal before the fork), `NS_OVERLAY_TMPFS_STEP`, `NS_OVERLAY_DIRS_STEP`, `NS_OVERLAY_STEP` | the overlay root of the namespace rung |
 | `check_exec(&plan, program)` | whether the confinement of the plan lets the program at a host path run on the entry with no chroot: `Ok` with no confinement or under an execute path, `Error::CannotInvoke` outside each one, `Error::NotFound` where the path does not resolve |
 | `check_exec_argv(&plan, argv)`, `check_exec_guest(&plan, &maps, argv)` | `check_exec` for each file that the kernel executes for `argv`: the program, the interpreter of each `#!` line (at most 5, as the kernel; a sixth level is `ELOOP`), and each program of a dynamic loader (`pod_confine::loader::each_program`; a program with no `/`, one that does not resolve, and a loader as the program of a loader are `Error::CannotInvoke`). `check_exec_argv` takes host paths; `check_exec_guest` takes guest paths: a bare name on `plan.path_dirs`, a relative one under `plan.working_dir`, each one through `maps`, and a program or an interpreter that does not resolve is `Ok` (the spawn names it, 127) |
@@ -421,7 +468,9 @@ each entry takes; the payload owns the standard output.
 | `fuse` | `check_node`, `check_node_at`, `serve_tree`, `release_mount`, `ActiveMount`, `FUSE_NODE` |
 | `device` | `parse`, `Mapping`, `canon`, `spec_entry`, `serve_entry`, `banner_line(&names, ..)`, `open_all`, `Opened`, `specs_of(&names, ..)`, `push_spec(&names, ..)`, `push_serve(&names, ..)`, `CHILD_FD_BASE`, `HOST_FD_FLOOR`, `SEP_ENTRY` |
 | `NS_USER_STEP`, `NS_SETGROUPS_STEP`, `NS_UID_MAP_STEP`, `NS_GID_MAP_STEP`, `calls_for_user_namespace`, `both_refused` | the namespace rung through a user namespace (PodUtils/podvm#406): the steps in `ns_setup_step`, the refusal that calls for the retry (`EPERM` of `unshare(CLONE_NEWNS)`), the cause of the fallback line |
-| `NS_NESTED_USER_STEP`, `NS_NESTED_SETGROUPS_STEP`, `NS_NESTED_UID_MAP_STEP`, `NS_NESTED_GID_MAP_STEP` | the steps 37 to 40 of the nested user namespace of a caller that is uid 0 of a user namespace (PodUtils/podvm#452); a refused one is `Error::Runtime` with the ids of the plan, not `NsSetup` |
+| `NS_NESTED_USER_STEP`, `NS_NESTED_SETGROUPS_STEP`, `NS_NESTED_UID_MAP_STEP`, `NS_NESTED_GID_MAP_STEP` | the steps 37 to 40 of the nested user namespace of a caller that is uid 0 of a user namespace (PodUtils/podvm#452), and of the lock of the mounts (PodUtils/podvm#695); a refused one is `Error::Runtime` with the ids of the plan or the lock, not `NsSetup` |
+| `NS_LOCK_USER_STEP`, `NS_NESTED_NS_STEP` | the lock of the mounts (PodUtils/podvm#695): a refused `unshare(CLONE_NEWUSER)` of host root (58, a setup step), and a refused `unshare(CLONE_NEWNS)` in the nested user namespace (59, `Error::Runtime`) |
+| `NS_ROOT_BIND_STEP`, `NS_PIVOT_STEP`, `NS_OLD_ROOT_STEP`, `NS_READ_ONLY_STEP`, `NS_DEV_KEEP_STEP` | the root of the namespace rung (PodUtils/podvm#695): the bind of the root onto itself (53), the pivot (54) and the detach of the old root (55), setup steps; the read-only remount of the root (56) and the bind of its `/dev` (57), `Error::Runtime` |
 | `DEVICES`, `Kind`, `kind_of`, `Choice`, `choose`, `NS_DEV_POINT_STEP`, `NS_DEV_BIND_STEP`, `NS_DEV_REMOUNT_STEP`, `ns_dev_refused_start(&names, ..)`, `ns_dev_skipped_line(&names, ..)`, `no_dev_line(&names)` | the device nodes of the host on the namespace rung through a user namespace (PodUtils/podvm#414): the choice of each path, the steps in `ns_setup_step`, the lines |
 | `DEVPTS_OPTIONS`, `DEVPTS_FLAGS`, `NS_DEVPTS_STEP`, `NS_PTMX_BIND_STEP`, `devpts_refused(&names)`, `ptmx_of` | a devpts instance of the unit and its `/dev/ptmx` on the namespace rung through a user namespace (PodUtils/podvm#469): the options, the steps in `ns_setup_step`, the line of a refused instance |
 | `NS_VOLUME_POINT_STEP`, `NS_VOLUME_LINK_STEP`, `NS_VOLUME_BIND_STEP`, `NS_VOLUME_REMOUNT_STEP`, `VOLUMES_MOST`, `volume_label`, `volume_guest_parts`, `volume_remount_flags` | the volumes of the namespace rung (PodUtils/podvm#440): the steps 33 to 36 in `ns_setup_step` (a refused one is `Error::Runtime` with the volume, not `NsSetup`), at most 255 volumes, `HOST:GUEST[:ro]`, the components of a guest path or why it is not one, the flags of the read-only remount for the `f_flags` of `statfs` |

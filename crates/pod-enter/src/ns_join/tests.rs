@@ -99,3 +99,17 @@ fn a_process_that_is_no_init_is_joined_itself() {
     let _ = child.wait();
     assert!(joinable(0).is_none());
 }
+
+/// The mount namespace of this process belongs to its own user namespace:
+/// a join of it enters no owner first, and its step has a name.
+#[test]
+fn a_join_of_this_process_enters_no_owner_first() {
+    let pidfd = sys::pidfd_open(sys::getpid()).expect("pidfd_open of this process");
+    assert!(mount_owner(pidfd).is_none());
+    let _ = sys::close(pidfd);
+    assert!(mount_owner(-1).is_none(), "a descriptor that names no process");
+    let step = ns_setup_step(NS_JOIN_OWNER_STEP);
+    assert_eq!(step, Some("setns(the owner of the mount namespace of the run, CLONE_NEWUSER)"));
+    let with = Join { owner: Some(-1), ..Join { pidfd: -1, overlay: false, user: true, pid: false, owner: None } };
+    assert_eq!(with.enter(), Err((NS_JOIN_OWNER_STEP, sys::EBADF)), "the owner comes first");
+}

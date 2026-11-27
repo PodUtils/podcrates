@@ -47,6 +47,9 @@ pub fn each_path() -> i32 {
     if failed == 0 { 0 } else { 101 }
 }
 
+/// One case, with or with no PID namespace.
+type Case = fn(bool) -> Result<(), String>;
+
 /// Each case on the path `path` (the path of this process), with and with
 /// no PID namespace. The count of the failed cases.
 pub fn run_all(path: &str) -> i32 {
@@ -57,7 +60,7 @@ pub fn run_all(path: &str) -> i32 {
             return 0;
         }
     }
-    let cases: [(&str, fn(bool) -> Result<(), String>); 3] = [
+    let cases: [(&str, Case); 3] = [
         ("the mounts of the rung are locked and the root holds", locked),
         ("a join lands in the namespaces of the payload and is locked", joined),
         ("a read-only root refuses a write", read_only),
