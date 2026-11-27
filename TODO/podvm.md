@@ -15966,3 +15966,176 @@ guests boot from an initramfs) would copy it.
 cargo test -p pod-guest --all-features --lib -- ext4::
 python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM pod-guest
 ```
+
+# T-1560: `pod-enter`: the namespace rung enters the tree with `pivot_root`, and the payload of uid 0 gets a nested user and mount namespace, so it cannot leave the tree or remount a `:ro` volume (PodUtils/podvm#695, asks 1 to 4)
+
+**Source:** PodUtils/podvm#695 (COORD-268 of podvm, PodUtils/podvm@T-2105 and PodUtils/podvm@T-2106; author COLLABORATOR), from PodUtils/podrunner#378 and PodUtils/podvm#693.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+Two faults of the namespace rung (`NsEntry::Own`, `spawn_with` of
+`crates/pod-enter/src/launch.rs`), measured by podvm with its release
+binary on podcrates `v0.86.0`:
+
+1. The payload remounts a `:ro` volume writable:
+   `mount(NULL, "/x", NULL, MS_REMOUNT|MS_BIND, NULL)` returns 0, and a
+   write changes the host file. The payload is uid 0 of the user
+   namespace that made the binds. The kernel locks the flags of a mount
+   (`MNT_LOCK_READONLY` and the others, `MNT_LOCKED` beneath) only when it
+   copies a mount namespace into a less privileged user namespace. The
+   same holds for a remount that clears `nosuid`, `nodev` or `noexec` of
+   `/proc`, a remount of a `Plan::tmpfs` with another `size=`, and an
+   unmount of a volume.
+2. The payload leaves the tree. The rung enters it with
+   `chroot(rootpath)`, so the host's `/` stays in the mount namespace of
+   the payload. A payload of uid 0 holds `CAP_SYS_CHROOT`:
+   `mkdir x; chroot x; chdir("..")` 64 times, then `chroot(".")`, and it
+   opens host paths with its own ids (as host root in a `run -d` of root).
+
+The asks:
+
+1. `pivot_root` in place of `chroot` on the own-namespace path: a bind of
+   `rootpath` onto itself (`MS_BIND|MS_REC`) unless it is a mount already
+   (an overlay root); `chdir(rootpath)`, `pivot_root(".", ".")`,
+   `umount2(".", MNT_DETACH)`, `chdir("/")`; the device and inode check
+   stays.
+2. A nested user and mount namespace for the payload on each
+   own-namespace entry where the payload is uid 0 (the user namespace of
+   the rung, and host root). The maps are the identity of each line of the
+   outer `uid_map` and `gid_map`, written by a process that stays in the
+   outer user namespace; for one id the child writes `0 0 1` itself. The
+   unshare comes after the pivot (`current_chrooted()` refuses a chrooted
+   process). For host root this removes the capabilities of the initial
+   user namespace: podvm asks podcrates to decide whether that needs a
+   setting.
+3. Joins: `ns_join` joins the owner of the mount namespace of the run
+   first (`NS_GET_USERNS` of `/proc/PID/ns/mnt`), then
+   `setns(pidfd, CLONE_NEWUSER|CLONE_NEWNS[|CLONE_NEWPID])`.
+4. Tests as root and as a user with no root, with a `read_only` volume, a
+   `Plan::tmpfs` and `pid_namespace`: `EPERM` or `EINVAL` on the remount
+   that clears `ro`, on a remount that clears `nosuid` or `nodev` of
+   `/proc`, on a remount of the tmpfs with `size=64m` and on `umount2` of
+   a volume; the way out of the tree reaches no host path; a join lands in
+   the namespaces of the payload. A payload that calls the system calls
+   directly (busybox `mount` does not send the bind remount).
+
+## Premise
+
+- Read: the body of PodUtils/podvm#695, PodUtils/podvm#693 and
+  PodUtils/podrunner#378; podvm `main`:
+  `PodUtils/podvm:crates/podvm-enter/src/lock.rs` (`payload_ids`: `Plan::userns_ids =
+  0:0` where the map is one line `0 X 1`),
+  `PodUtils/podvm:crates/podvm/src/userns/lock.rs`
+  (`mount_owner`: `NS_GET_USERNS`, then the join of the owner),
+  `PodUtils/podvm:crates/podvm-enter/src/read_only.rs`; `crates/pod-enter/src/launch.rs`,
+  `ns_user.rs`, `ns_join.rs`, `ns_pid.rs`, `entry.rs`.
+- Measured on this host (a cloud container, Linux 6.18, root of the
+  initial user namespace, `max_user_namespaces` 64271):
+  `unshare -U -r -m` passes as root and as uid 1000 (`setpriv
+  --reuid=1000`); `pivot_root` in a user and mount namespace of uid 1000
+  passes; a PID namespace of uid 1000 passes. The host has no static
+  busybox, so the tests of `tests/userns.rs` skip here.
+- The kernel (read, not measured here): `mntns_install` checks
+  `CAP_SYS_ADMIN` over the owner of the mount namespace with the
+  credentials before the join; `new_idmap_permitted` takes a map of more
+  than one id only from a writer with `CAP_SETUID` in the parent user
+  namespace; `create_user_ns` refuses a chrooted process.
+- Not measured: a host whose root is the initial ramfs (`pivot_root`
+  gives `EINVAL` there).
+
+## Approach
+
+1. In the child of the own-namespace entry, after the private remount of
+   `/`: the overlay root, or a bind of the root path onto itself. Each
+   mount of the rung goes on top of it. After the mounts: `chdir` to the
+   root path, `pivot_root(".", ".")`, `umount2(".", MNT_DETACH)`,
+   `chdir("/")`, and the device and inode check. A refusal is a setup
+   step of the rung (the entry falls back to chroot, and a plan with a
+   mount, a PID namespace or a host name refuses the fallback).
+2. `ns_user::nested_for` gives the lock for each own-namespace entry
+   where the payload is uid 0: the maps of one line of one id are written
+   by the child (`a a 1`, `setgroups` `deny`); each other map (host root,
+   a subordinate range) by the parent of the fork, which stays in the
+   outer user namespace, with the identity of each line. After the maps,
+   `unshare(CLONE_NEWNS)`. A refusal stops the payload and names its
+   call; only a refused `unshare(CLONE_NEWUSER)` of host root is a setup
+   step (a host with no user namespace keeps the rung of root with its
+   fallback). The descriptor of `/proc/self` opens before the pivot.
+3. `ns_join::Join::of` reads the owner of the mount namespace of the run
+   (`NS_GET_USERNS`); where it is not the user namespace of the payload
+   nor the one of the caller, the child joins it first.
+4. A test target with no harness (`tests/locked.rs`): the binary is the
+   payload, which calls `mount(2)`, `umount2(2)` and `chroot(2)` directly,
+   as root and as uid 65534 (`pod_testkit::nobody`), and as uid 0 of a
+   user namespace.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+cargo test -p pod-enter --all-features
+```
+
+# T-1561: `pod-enter`: `Plan::read_only_root`, a read-only root of the namespace rung (PodUtils/podvm#695, ask 5)
+
+**Source:** PodUtils/podvm#695 (COORD-268 of podvm, ask 5, PodUtils/podvm@T-2108; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+podvm's `--read-only` on the namespace rung needs a root that the payload
+cannot write. podvm `main` (`a55b176`) makes it itself
+(`podvm_enter::read_only::seal`): a bind of the tree onto itself,
+remounted `MS_RDONLY`, before the entry. The ask: `Plan::read_only_root:
+bool` for `spawn_namespace`, `spawn_own`, the overlay root and the
+fallback of `spawn_joined`. In the child, right after `/` is private, a
+bind of `rootpath` onto itself (`MS_BIND|MS_REC`); each mount of the rung
+on top of it (the tmpfs of `/tmp`, `/proc`, devpts, the devices,
+`ns_volume`, `ns_tmpfs`), so mount points can still be made; optionally
+`/dev` kept writable with a bind; last, before the nested user namespace
+and the change of root, a remount `MS_REMOUNT|MS_BIND|MS_RDONLY` with
+`volume_remount_flags`, a check of `ST_RDONLY`, and a new step byte on a
+failure with no writable fallback. The chroot fallback and the userland
+entries refuse a plan with the flag, as they refuse `pid_namespace` and
+`tmpfs`.
+
+## Premise
+
+- Read: the body of PodUtils/podvm#695, ask 5;
+  `PodUtils/podvm:crates/podvm-enter/src/read_only.rs` of podvm `main` (the seal binds
+  `/dev` of the tree onto itself, so `/dev` stays writable as docker's
+  tmpfs `/dev`).
+- T-1560 gives the bind of the root onto itself on each own-namespace
+  entry; this entry adds the remount.
+- Not measured: an overlay root with a read-only remount on a host that
+  podvm uses.
+
+## Approach
+
+1. `Plan::read_only_root`. The chroot rung, the ladder, the userland entry
+   and a join refuse a plan with it before the fork (`ns_volume::first_mount`
+   names it for the fallback of the namespace rung).
+2. In the child, with the flag, after the root mount: a bind of `/dev` of
+   the tree onto itself where it is a directory. After each mount of the
+   rung: `statfs` of the root path, the remount with
+   `volume_remount_flags`, then `statfs` again; a refusal, or a root that
+   is not `ST_RDONLY`, is a new step byte that stops the payload.
+3. Tests: the payload gets `EROFS` on a write to `/`, a write to `/tmp`,
+   `/dev` and a writable volume passes, and the remount that clears `ro`
+   of `/` fails for the payload.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+cargo test -p pod-enter --all-features plan
+```
