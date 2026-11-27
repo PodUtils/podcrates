@@ -1,0 +1,6 @@
+# pod-actions-store: a name of except is followed in a composite action (T-1540).
+ENTRY=T-1540
+GROUP=actions
+EXPECT='a_name_of_except_is_not_fetched_followed_or_locked_at_each_depth'
+RUN='cargo test -p pod-actions-store --all-features --lib store'
+LIMIT=900

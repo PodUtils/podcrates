@@ -1,0 +1,13 @@
+diff --git a/crates/pod-actions-store/src/store/uses.rs b/crates/pod-actions-store/src/store/uses.rs
+index 1c96bb64..e29c246d 100644
+--- a/crates/pod-actions-store/src/store/uses.rs
++++ b/crates/pod-actions-store/src/store/uses.rs
+@@ -92,7 +92,7 @@ pub(crate) fn composite_uses(text: &str, parent: &str) -> Result<Vec<String>, Er
+     let mut out = Vec::new();
+     for s in steps {
+         match s.get("uses").map(|n| &n.kind) {
+-            Some(Kind::String(u)) if remote(u) => out.push(match self_uses(u, repo, r) {
++            Some(Kind::String(u)) if remote(u) => out.push(match self_uses(u, repo, r).filter(|_| false) {
+                 Some(mapped) => mapped?,
+                 None => u.clone(),
+             }),
