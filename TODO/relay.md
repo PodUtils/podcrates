@@ -13550,3 +13550,56 @@ target through an `https` proxy stand-in.
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+# T-1601: `pod-session`: `a_cap_of_1_mib_takes_a_smaller_window` fails on a target of 32 bits: `after_mark(usize::MAX)` does not saturate there
+
+**Source:** `nightly.yml` run 45806031483 at `f2f8e3f5` (schedule, 2026-11-26), the jobs `cross` of arm (139861405205), armv7 (139861405511) and i686 (139861405412), binary `pod_session` (lib tests).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`resume::cap::tests::a_cap_of_1_mib_takes_a_smaller_window` fails at
+`cap.rs:146`: `move_under(u64::MAX, usize::MAX)` is
+`Some(18446744013579081459)`, and the test wants `None` ("no overflow").
+On a target of 64 bits, `usize::MAX * 14` saturates at `u64::MAX`, so no
+move fits. On a target of 32 bits, `usize::MAX` is 4 GiB, and its bytes
+with their heads (60 GB) fit in a `u64` with room for a move. The code is
+correct on each target; the test takes the result of 64 bits. Each of the
+three jobs runs all its test binaries; this is the only failure. The job
+of powerpc64le (64 bits) passes this test.
+
+## Premise
+
+- Read: the logs of the three jobs; `crates/pod-session/src/resume/cap.rs`.
+- The other arithmetic of `after_mark` is in `u64` (`window / ACK_EVERY`),
+  with no overflow for each `usize`.
+
+## Approach
+
+The test checks that `after_mark(usize::MAX)` is at least
+`usize::MAX * (DATA_HEAD + 1)` (saturated), and that no move fits a cap of
+`after_mark(usize::MAX)`. The check of `move_under(u64::MAX, usize::MAX)
+== None` stays for a target of 64 bits alone.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features --lib resume::cap
+cargo test -p pod-session --all-features --lib --target i686-unknown-linux-musl
+```
+The jobs `cross` of arm, armv7 and i686 of the next `nightly.yml` run pass
+the binary `pod_session`.
+
+## Done
+
+2026-11-27, commit 37270e68 (branch `night1126`). The test
+`resume::cap::tests::a_cap_of_1_mib_takes_a_smaller_window` takes the
+window of each pointer width. `cargo test -p pod-session --all-features --lib --target
+i686-unknown-linux-musl` (a native run on this host): 45 passed, 0
+failed; `cargo test -p pod-core --all-features --lib --target
+i686-unknown-linux-musl`: 131 passed. On x86_64: 45 passed. Not verified:
+arm and armv7 under QEMU; the next `nightly.yml` run proves it.
