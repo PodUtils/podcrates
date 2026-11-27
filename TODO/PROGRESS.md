@@ -13,8 +13,13 @@
   the run on the tag 45785761766 passed. Its hand-off is COORD-158 (#272),
   open until each consumer names the tag (call C780). The hand-off
   COORD-156 (#262) of `v0.85.0` is closed.
-- On `main` after `v0.86.0`, for the next tag: `docs/HANDOFF.md`, "On
-  `main` after `v0.86.0`", names each change.
+- `v0.87.0` is prepared on `main` (`docs/releases/v0.87.0.md`): the
+  security fix of `pod-enter` (PodUtils/podvm#695: T-1560, T-1561, T-1635
+  to T-1641) and the asks of podrunner and podvm of 2026-11-26 and
+  2026-11-27. Its gates and the release wait for the owner's agent (the
+  last `[gh action] requested` issue): the GitHub account of the session
+  has no Actions, and its pushes start no run. `docs/HANDOFF.md`,
+  "Release: v0.87.0", has the steps.
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -256,6 +261,8 @@ takes the number after the last row of that table.
   steps.
 - Delete the remote branches `wip/t1073` and `wip/gh373` (merged into
   `main`): the proxy of the sessions refuses `git push origin --delete`.
+- Run the block of the last `[gh action] requested` issue (the gates and
+  the release `v0.87.0`).
 
 The hand-off of each release is a COORD issue `(to all)`
 (`docs/maintenance.md`, "A release").

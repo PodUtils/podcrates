@@ -36,40 +36,34 @@ is done. Git and the record keep finished work.
      podvm are in a comment, and go to the body at the close. COORD-159 (#273) is closed: podvm fixed its
      frozen `ext.rs` at `846e733` (PodUtils/podvm#687). COORD-157 (#263): podnet,
      podvm and podrunner took the role table; it waits for podssh.
-   - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
-     PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
-   - On `main` after `v0.86.0`: PodUtils/podssh#358 (COORD-148, T-1390);
-     PodUtils/podvm#678 (COORD-259, T-1426, T-1427); PodUtils/podvm#680
-     (COORD-260, T-1500); PodUtils/podnet#781 (COORD-136, T-1507, T-1508);
-     PodUtils/podnet#783 (COORD-138, T-1516).
-   - Done on `main`: PodUtils/podnet#779 (T-1431, T-1432) and ask 2 of
-     PodUtils/podnet#782 (T-1432). Done on `main`: PodUtils/podnet#780
-     (T-1505, T-1506). Done on `main`: PodUtils/podnet#782
-     (T-1525 to T-1527; ask 5 is T-1528, open). Done on `main`:
-     PodUtils/podnet#785 (T-1531, T-1532). Done on `main`:
-     PodUtils/podrunner#367 (COORD-140, T-1529) and PodUtils/podrunner#373
-     (COORD-145, T-1530); answer each with the next tag. The answer to
-     #373 tells podrunner to read `jobServiceContainers` (the name of
-     `AgentJobRequestMessage`), not `serviceContainers`, and that the
-     step logs come from `GET /_fake/jobs/ID/logs` of `pod-fake-github`
-     (a lane reads `github_job_id` of the githome job). The owner deletes
-     `wip/gh373` (the proxy refuses a delete).
-   - Done on `main` (answer each with the next tag):
-     PodUtils/podrunner#375 (COORD-146, T-1550), #379 to #381 (COORD-148
-     to COORD-150, T-1540 to T-1542); PodUtils/podvm#692 asks 1, 3 and 4
-     (COORD-266, T-1580 to T-1582) and #683 (COORD-261, T-1583).
-   - Done on `main`: PodUtils/podvm#695 (COORD-268, security P1:
-     T-1560, T-1561, and the fixes of their review T-1635 to T-1641);
-     PodUtils/podvm#684 (T-1610), #692 ask 2 (T-1611), #689 (T-1612,
-     T-1613). Each goes in `v0.87.0` (`docs/releases/v0.87.0.md`). The
-     MCP dispatch answers "Actions has been disabled for this user" and a
-     push of this session starts no run: the gates and the release go by
-     a `[gh action] requested` issue. Push nothing to `main` from its open
-     until the tag exists.
-   - In work on a branch, merged after the tag: PodUtils/podnet#799
-     (COORD-141 of podnet, accepted by the owner on 2026-11-27): the role
-     column of Gemini / Antigravity Cloud and the start flags of podnet
-     (`--no-watchers`, `--run-watcher`, `.agents/environment.json`).
+   - In `v0.87.0` (`docs/releases/v0.87.0.md`; the request of the gates
+     and the release is the issue `[gh action] requested` that this
+     session opened last): answer each of these with the tag when it
+     exists, then follow each take. podrunner: PodUtils/podrunner#367
+     (T-1529), #373 (T-1530: read `jobServiceContainers`, the name of
+     `AgentJobRequestMessage`, not `serviceContainers`; the step logs come
+     from `GET /_fake/jobs/ID/logs` of `pod-fake-github`), #375 (T-1550),
+     #379 to #381 (T-1540 to T-1542), and #378 (closed by T-1560, T-1561,
+     T-1635 to T-1641; it is between podrunner and podvm). podvm:
+     PodUtils/podvm#675 (T-1424), #677 (T-1425), #678 (T-1426, T-1427),
+     #680 (T-1500), #683 (T-1583), #684 (T-1610), #689 (T-1612, T-1613),
+     #692 (T-1580 to T-1582, T-1611), #695 (security P1: T-1560, T-1561,
+     T-1635 to T-1641). podnet: PodUtils/podnet#779 (T-1431, T-1432), #780
+     (T-1505, T-1506), #781 (T-1507, T-1508), #782 (T-1525 to T-1527; ask 5
+     is T-1528, open), #783 (T-1516), #785 (T-1531, T-1532). podssh:
+     PodUtils/podssh#358 (T-1390).
+   - The hand-off of `v0.87.0` is a new COORD issue `(to all)`
+     (`docs/maintenance.md`, "A release", step 7); it names the parts of
+     `v0.86.0` that podssh did not take, and COORD-158 (#272) then
+     closes with a line of the result.
+   - On `main` after the request (not in `v0.87.0`): PodUtils/podnet#799
+     (COORD-141 of podnet, accepted by the owner on 2026-11-27, T-1650):
+     the role column of Gemini / Antigravity Cloud, `--no-watchers`,
+     `--run-watcher`, `.agents/environment.json`, `--dev-tools`; T-1651
+     (a pinned actionlint) is open. Answer #799 with the next tag.
+   - Not read yet (the owner put podnet and podssh after
+     podrunner and podvm): PodUtils/podssh#368 (COORD-155) and each new
+     issue `(to podcrates)` of podnet and podssh. Map each one.
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -84,6 +78,10 @@ is done. Git and the record keep finished work.
 4. Read the runs of the head of `main` (`ci`, `plants`, `adoption`,
    `secrets`, `deny`, `issue-sync`). A new red run needs an entry before
    other work. The open red runs and the runs to read:
+   - `nightly.yml` 45806031483 at `f2f8e3f5`: T-1600 and T-1601 (wrong
+     tests on Windows, macOS and 32-bit) are fixed on `main`; the next
+     nightly proves them. Its powerpc64le job failed in `pod-iroh`
+     `tests/road.rs` (T-916).
    - `nightly.yml` 45603454952 at `cd7cb5a`: T-1444 (`pod-core`,
      `files::temp` on Windows: `PermissionDenied` at the name of a
      directory) and T-1445 (`pod-tpm`, `tests/socket.rs` on macOS: the
@@ -122,6 +120,17 @@ is done. Git and the record keep finished work.
      `action_required`. Review its code before you approve or dispatch
      its CI (the ruling "Strangers").
 
+## Release: v0.87.0 (requested)
+
+`main` has the version `0.87.0` and `docs/releases/v0.87.0.md`. The gates
+of the head and the release wait for the owner's agent: the issue
+`[gh action] requested` (the MCP dispatch of this session answers
+"Actions has been disabled for this user"). Read its runs; when a gate is
+red, fix the cause and open the next request. When the tag exists, do
+steps 4 to 7 of "A release" (`docs/maintenance.md`), map the request in
+`TODO/issues.md` and `TODO/github.txt`, and set the `Tag` of each entry
+of the notes.
+
 ## Release: v0.86.0
 
 `v0.86.0` (`22d1a75`, `docs/releases/v0.86.0.md`) is released: the GitHub
@@ -139,7 +148,7 @@ breaking change with the files of each consumer.
 The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
 `v0.85.0` is closed: each consumer took it.
 
-### On `main` after `v0.86.0` (for the next tag)
+### In `v0.87.0` (after `v0.86.0`)
 
 - T-1424 (`pod-hostprobe`, PodUtils/podvm#675): `Settings::emulator`
   (`Option<PathBuf>`) and `Settings::with_emulator`; the machine legs run
