@@ -16657,7 +16657,8 @@ Breaks of podvm (no compatibility): each `pod_enter::TmpfsMount` literal
 adds `mode` (podvm names it `podvm_enter::TmpfsMount`; its users at podvm
 `main` are `PodUtils/podvm:crates/podvm/src/run/tmpfs.rs` and
 `PodUtils/podvm:crates/podvm-supervise/src/launcher/tmpfs.rs`, with their
-tests). podvm then drops its refusal of a mode other than 1777 with a size.
+tests, and the literal of
+`PodUtils/podvm:crates/podvm-enter/src/read_only/tests.rs`). podvm then drops its refusal of a mode other than 1777 with a size.
 
 # T-1612: `pod-enter`: no overlay kind of volume in `Plan::volumes`, so podvm mounts `-v HOST:GUEST:overlay` in a namespace step of its own (PodUtils/podvm#689)
 
