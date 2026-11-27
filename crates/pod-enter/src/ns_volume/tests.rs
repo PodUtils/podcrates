@@ -31,7 +31,7 @@ fn plan(volumes: Vec<VolumeBind>) -> Plan {
 }
 
 fn vol(host: &str, guest: &str, read_only: bool) -> VolumeBind {
-    VolumeBind { host: host.to_string(), guest: guest.to_string(), read_only, host_base: None }
+    VolumeBind { host: host.to_string(), guest: guest.to_string(), read_only, host_base: None, overlay: None }
 }
 
 /// A fresh directory of this test.
@@ -170,6 +170,7 @@ fn the_walk_makes_the_mount_point_and_refuses_a_link() {
         dir,
         read_only: false,
         beneath: None,
+        overlay: None,
     };
     let walk = |guest: &str, dir: bool| {
         point(root, &prepared(guest, dir)).map(|fd| {

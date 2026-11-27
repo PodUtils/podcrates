@@ -174,10 +174,19 @@ pub(crate) fn spawn_own(root: &RootDir, plan: &Plan, mount: &mut NsMount, banner
         Err(e) => return Own { result: Err(e), first: None },
     };
     let word = Rung::Namespace.word();
+    // A caller in a user namespace makes the mount namespace in it: that
+    // namespace owns it, so the image holds no device node either
+    // (PodUtils/podvm#689).
+    mount.caller_userns = crate::ns_overlay::caller_in_user_namespace();
+    if mount.caller_userns {
+        mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
+    }
     match spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), banner, err) {
         Err(Error::NsSetup { step, errno }) if calls_for_user_namespace(step, errno) => {
             mount.user = Some(Maps::of_caller_inside(ids));
-            mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
+            if mount.devices.is_none() {
+                mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
+            }
             let result = spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), false, err);
             Own { result, first: Some((step, errno)) }
         }

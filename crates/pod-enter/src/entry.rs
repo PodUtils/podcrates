@@ -145,9 +145,23 @@ pub struct NsMount {
     /// The overlay root, first after the private remount, where the root
     /// is an overlay ([`crate::Root::Overlay`]).
     pub(crate) overlay: Option<OverlayMount>,
-    /// The binds of the host's devices, built with the user namespace
-    /// (`ns_dev_bind`).
+    /// The binds of the host's devices, built where a user namespace owns
+    /// the mount namespace (`ns_dev_bind`).
     pub(crate) devices: Option<crate::ns_dev_bind::Devices>,
+    /// The caller is in a user namespace that is not the initial one: that
+    /// namespace owns the mount namespace of the rung where the rung makes
+    /// none of its own (`ns_user::spawn_own`).
+    pub(crate) caller_userns: bool,
+}
+
+impl NsMount {
+    /// Does a user namespace own the mount namespace of the rung: the one
+    /// of the rung, or the one of the caller? The kernel then refuses
+    /// `mknod` and a fresh proc of the PID namespace of the host, and an
+    /// overlay mount needs `userxattr`.
+    pub(crate) fn userns(&self) -> bool {
+        self.user.is_some() || self.caller_userns
+    }
 }
 
 /// The mounts of the namespace rung: its own, or the mount namespace of
@@ -170,16 +184,17 @@ impl<'a> NsEntry<'a> {
 
     /// The upper directory of the caller of an overlay root
     /// (`Upper::Dir`), with the attribute of an opaque directory that its
-    /// mount reads: the checks before the fork read it over the image.
-    pub(crate) fn upper(&self) -> Option<crate::ns_upper::UpperDir<'a>> {
+    /// mounts read (the overlay root and each overlay volume): the checks
+    /// before the fork read the upper layers over the lower ones.
+    pub(crate) fn upper(&self) -> crate::ns_upper::UpperDir<'a> {
         match self {
-            NsEntry::Own(m) => m.overlay.as_ref().and_then(|o| {
-                let userxattr = o.userxattr(m.user.is_some());
-                o.upper_dir().map(|path| crate::ns_upper::UpperDir { path, userxattr })
-            }),
+            NsEntry::Own(m) => {
+                let path = m.overlay.as_ref().and_then(|o| o.upper_dir());
+                crate::ns_upper::UpperDir { path, userxattr: m.userns() }
+            }
             NsEntry::Join(j, upper) => {
                 let userxattr = j.user || crate::ns_overlay::caller_in_user_namespace();
-                upper.map(|path| crate::ns_upper::UpperDir { path, userxattr })
+                crate::ns_upper::UpperDir { path: *upper, userxattr }
             }
         }
     }
@@ -294,7 +309,8 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
             .or_else(|| crate::ns_pid::step_name(step))
             .or_else(|| crate::ns_tmpfs::step_name(step))
             .or_else(|| crate::ns_root::step_name(step))
-            .or_else(|| crate::ns_lock::step_name(step)),
+            .or_else(|| crate::ns_lock::step_name(step))
+            .or_else(|| crate::ns_layer::step_name(step)),
     }
 }
 
@@ -368,7 +384,8 @@ pub(crate) fn namespace_entry(root: &RootDir, plan: &Plan, banner: bool, err: &m
         return chroot(err, "the /tmp mount point contains a NUL byte", banner);
     };
     let optional = optional_mounts(&root.path, names);
-    let mut mount = NsMount { user: None, tmp_target: target, optional, overlay: None, devices: None };
+    let mut mount =
+        NsMount { user: None, tmp_target: target, optional, overlay: None, devices: None, caller_userns: false };
     let own = crate::ns_user::spawn_own(root, plan, &mut mount, banner, err);
     match (own.result, own.first) {
         (Err(Error::NsSetup { step, errno }), Some((first, e))) => {

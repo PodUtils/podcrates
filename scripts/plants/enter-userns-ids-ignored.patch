@@ -1,13 +1,11 @@
-diff --git a/crates/pod-enter/src/ns_user.rs b/crates/pod-enter/src/ns_user.rs
-index 8117efd..91182bc 100644
 --- a/crates/pod-enter/src/ns_user.rs
 +++ b/crates/pod-enter/src/ns_user.rs
-@@ -123,7 +123,7 @@ pub(crate) fn spawn_own(root: &RootDir, plan: &Plan, mount: &mut NsMount, banner
-     let word = Rung::Namespace.word();
+@@ -183,7 +183,7 @@
+     }
      match spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), banner, err) {
          Err(Error::NsSetup { step, errno }) if calls_for_user_namespace(step, errno) => {
 -            mount.user = Some(Maps::of_caller_inside(ids));
 +            mount.user = Some(Maps::of_caller_inside((0, 0)));
-             mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
-             let result = spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), false, err);
-             Own { result, first: Some((step, errno)) }
+             if mount.devices.is_none() {
+                 mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
+             }

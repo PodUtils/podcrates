@@ -1,0 +1,7 @@
+# The mount of a tmpfs drops the mode of the plan (T-1611, PodUtils/podvm#692
+# ask 2).
+ENTRY=T-1611
+GROUP=enter
+EXPECT='test ns_tmpfs::tests::a_tmpfs_is_checked_before_the_fork \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --lib ns_tmpfs::tests'
+LIMIT=900

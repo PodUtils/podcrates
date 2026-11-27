@@ -1,10 +1,8 @@
-diff --git a/crates/pod-enter/src/ns_overlay.rs b/crates/pod-enter/src/ns_overlay.rs
-index 7b9f7b55..3952bad7 100644
 --- a/crates/pod-enter/src/ns_overlay.rs
 +++ b/crates/pod-enter/src/ns_overlay.rs
-@@ -199,7 +199,7 @@ pub(crate) fn namespace_root_entry(root: Root<'_>, plan: &Plan, banner: bool, er
+@@ -253,7 +253,7 @@
      let optional = optional_mounts(&lower.path, &plan.names);
-     let mut mount = NsMount { user: None, tmp_target, optional, overlay, devices: None };
+     let mut mount = NsMount { user: None, tmp_target, optional, overlay, devices: None, caller_userns: false };
      match crate::ns_user::spawn_own(lower, plan, &mut mount, banner, err).result {
 -        Err(Error::NsSetup { step, errno }) => Err(Error::Overlay { step: overlay_step(step), errno }),
 +        Err(Error::NsSetup { .. }) => crate::spawn(lower, plan, err),

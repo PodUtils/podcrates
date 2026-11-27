@@ -82,10 +82,10 @@ impl<'a> OwnSteps<'a> {
         // `/proc`, `/dev/pts` and the host's devices: a refused one writes
         // one line and the rung goes on.
         crate::ns_optional::mount_each(m);
-        self.root.after_optional(m.user.is_some())?;
+        self.root.after_optional(m.userns())?;
         // The volumes of the plan, after each mount of the rung: a refused
         // one stops the payload (`ns_volume`).
-        crate::ns_volume::bind_each(self.volumes)?;
+        crate::ns_volume::bind_each(self.volumes, m.userns())?;
         if let Some(name) = self.hostname {
             crate::uts::enter(name, self.hostname_len).map_err(one)?;
         }

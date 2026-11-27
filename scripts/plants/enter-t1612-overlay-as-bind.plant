@@ -1,0 +1,7 @@
+# An overlay volume is a writable bind of its host path: a write of the
+# payload changes the lower layer (T-1612, PodUtils/podvm#689).
+ENTRY=T-1612
+GROUP=confine
+EXPECT='an overlay volume keeps its lower layer and is locked, with no PID namespace \.\.\. FAILED: a write of the payload changed the lower layer'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

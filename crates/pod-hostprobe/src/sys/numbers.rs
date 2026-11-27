@@ -123,6 +123,9 @@ pub const EBADF: Errno = errno(e::EBADF);
 pub const ENOTTY: Errno = errno(e::ENOTTY);
 pub const EACCES: Errno = errno(e::EACCES);
 pub const EEXIST: Errno = errno(e::EEXIST);
+/// `EBUSY`: a mount whose directory another mount uses (the upper or the
+/// work directory of an overlay).
+pub const EBUSY: Errno = errno(e::EBUSY);
 /// `EXDEV`, cross-device link: the number the (d,i) guard reports under,
 /// because a chroot that landed off its descriptor is on the wrong device
 /// or the wrong file.

@@ -42,6 +42,19 @@ fn escape(marker: &str) -> i64 {
     k::stat(&c(marker)).map_or_else(|e| -i64::from(e.0), |_| 0)
 }
 
+/// Write `bytes` into the file `path` opened with `flags`: the count of the
+/// bytes, or the negative errno.
+fn put(path: &CBuf, flags: u64, bytes: &[u8]) -> i64 {
+    match k::open(path, flags | k::O_WRONLY | k::O_TRUNC | k::O_CLOEXEC, 0o644) {
+        Ok(fd) => {
+            let r = code(k::write(fd, bytes).map(|_| 0)).min(0);
+            let _ = k::close(fd);
+            if r < 0 { r } else { bytes.len() as i64 }
+        }
+        Err(e) => -i64::from(e.0),
+    }
+}
+
 /// The way out through a process `pid` of the host (T-1635): `PATH`
 /// relative to each directory that the process holds (a descriptor, its
 /// working directory). 1 where a walk reaches `path`, 0 where none does,
@@ -68,6 +81,12 @@ fn op(op: &str, path: &str) -> i64 {
         "umount" => code(k::umount(&p)),
         "write" => code(k::open(&p, k::O_CREAT | k::O_WRONLY | k::O_CLOEXEC, 0o644)),
         "escape" => escape(path),
+        // A new file, and a change of a file that exists.
+        "put" => put(&p, k::O_CREAT, b"new"),
+        "change" => put(&p, 0, b"changed"),
+        "unlink" => code(k::unlink(&p)),
+        "stat" => code(k::stat(&p).map(|_| 0)),
+        "rdwr" => code(k::open(&p, k::O_RDWR | k::O_NOCTTY | k::O_CLOEXEC, 0)),
         // 1 where the path is a character device, else 0.
         "chr" => k::stat(&p).map_or_else(|e| -i64::from(e.0), |st| i64::from(st.st_mode & 0o170000 == 0o020000)),
         // The hard limit of a resource of `setrlimit(2)`, by its number.

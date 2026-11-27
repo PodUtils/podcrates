@@ -1,13 +1,13 @@
-diff --git a/crates/pod-enter/src/ns_upper.rs b/crates/pod-enter/src/ns_upper.rs
-index 8e42206d..a875c152 100644
 --- a/crates/pod-enter/src/ns_upper.rs
 +++ b/crates/pod-enter/src/ns_upper.rs
-@@ -67,7 +67,7 @@ impl View {
-     /// Where the upper directory takes part in the view of `parts`: a path
-     /// that no volume serves.
-     fn layered(&self, parts: &[String]) -> Option<&Path> {
--        self.upper.as_deref().filter(|_| !self.maps.in_volume(parts))
-+        self.upper.as_deref()
-     }
- }
- 
+@@ -101,7 +101,9 @@
+     fn layered<'p>(&self, parts: &'p [String]) -> Option<(&Path, PathBuf, &'p [String])> {
+         match self.maps.volume_of(parts) {
+             Some((at, depth)) => {
+-                let upper = self.layers.get(at)?.as_deref()?;
++                let Some(upper) = self.layers.get(at).and_then(|l| l.as_deref()) else {
++                    return self.upper.as_deref().map(|u| (u, self.maps.root().to_path_buf(), parts));
++                };
+                 Some((upper, PathBuf::from(&self.maps.volumes()[at].host), &parts[depth..]))
+             }
+             None => self.upper.as_deref().map(|u| (u, self.maps.root().to_path_buf(), parts)),

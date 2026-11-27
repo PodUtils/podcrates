@@ -76,7 +76,7 @@ pub fn run_all(path: &str) -> i32 {
             return 0;
         }
     }
-    let cases: [(&str, Case, &[bool]); 10] = [
+    let cases: [(&str, Case, &[bool]); 12] = [
         ("the mounts of the rung are locked and the root holds", locked, BOTH),
         ("a join lands in the namespaces of the payload and is locked", joined, BOTH),
         ("a read-only root refuses a write", read_only, BOTH),
@@ -87,6 +87,8 @@ pub fn run_all(path: &str) -> i32 {
         ("a hard limit over the one of the caller", super::more::limit_over_hard, BOTH),
         ("a read-only root has a /dev of its own", super::more::dev_of_its_own, BOTH),
         ("a read-only root hides a mount under its tree", super::more::mount_under_the_tree, BOTH),
+        ("an overlay volume keeps its lower layer and is locked", super::layer::overlay_volume, BOTH),
+        ("a user namespace of the mounts gets the devices of the host", super::layer::devices, BOTH),
     ];
     run_each(path, &cases)
 }

@@ -105,7 +105,7 @@ fn layers(tag: &str) -> Option<Layers> {
 /// The view of a mount in a user namespace, with `userxattr`: the mark of
 /// `opaque_at` is the one that it reads.
 fn view(l: &Layers, volumes: Vec<VolumeBind>) -> View {
-    View::new(&l.root, &plan(volumes), Some(UpperDir { path: &l.upper, userxattr: true }))
+    View::new(&l.root, &plan(volumes), Some(UpperDir { path: Some(&l.upper), userxattr: true }))
 }
 
 /// The upper layer adds and hides entries, a whiteout removes one, an
@@ -130,7 +130,7 @@ fn the_view_shows_the_upper_layer_over_the_lower_one() {
     }
     // A mount of a host root reads `trusted.` alone: the mark of `user.`
     // makes no opaque directory there.
-    let host_root = View::new(&l.root, &plan(Vec::new()), Some(UpperDir { path: &l.upper, userxattr: false }));
+    let host_root = View::new(&l.root, &plan(Vec::new()), Some(UpperDir { path: Some(&l.upper), userxattr: false }));
     assert_eq!(resolve_in(&host_root, "/op/old"), Ok(lower.join("op/old")), "user. on a mount of a host root");
     // With no upper layer, the image alone.
     let bare = View::new(&l.root, &plan(Vec::new()), None);
@@ -145,8 +145,13 @@ fn a_volume_hides_both_layers() {
     let host = l.dir.join("host");
     std::fs::create_dir_all(&host).unwrap();
     std::fs::write(host.join("h"), "h").unwrap();
-    let bind =
-        VolumeBind { host: text(&host).to_string(), guest: "/vol".to_string(), read_only: false, host_base: None };
+    let bind = VolumeBind {
+        host: text(&host).to_string(),
+        guest: "/vol".to_string(),
+        read_only: false,
+        host_base: None,
+        overlay: None,
+    };
     let v = view(&l, vec![bind]);
     assert_eq!(resolve_in(&v, "/vol/h"), Ok(host.join("h")));
     assert_eq!(resolve_in(&v, "/vol/u"), Err(ResolveKind::Absent), "the file of the upper layer under the volume");
@@ -162,10 +167,12 @@ fn the_working_directory_is_checked_in_the_view() {
     let Some(l) = layers("workdir") else { return };
     let mut p = plan(Vec::new());
     p.working_dir = "/only".to_string();
-    assert!(crate::ns_volume::check_workdir(&l.root, &p, Some(UpperDir { path: &l.upper, userxattr: true })).is_ok());
+    assert!(
+        crate::ns_volume::check_workdir(&l.root, &p, Some(UpperDir { path: Some(&l.upper), userxattr: true })).is_ok()
+    );
     assert!(crate::ns_volume::check_workdir(&l.root, &p, None).is_err(), "the image alone has no /only");
     p.working_dir = "/gonedir".to_string();
-    let e = crate::ns_volume::check_workdir(&l.root, &p, Some(UpperDir { path: &l.upper, userxattr: true }))
+    let e = crate::ns_volume::check_workdir(&l.root, &p, Some(UpperDir { path: Some(&l.upper), userxattr: true }))
         .unwrap_err()
         .to_string();
     assert!(e.contains("\"/gonedir\"") && e.contains(&format!("under the upper layer {:?}", l.upper)), "{e}");
@@ -189,4 +196,41 @@ fn a_rule_opens_in_the_view() {
     assert_eq!(file("/both/l"), ino(l.dir.join("lower/both/l")));
     assert_eq!(file("/gone"), Err("ENOENT".to_string()));
     assert_eq!(file("/gonedir"), Err("ENOENT".to_string()));
+}
+
+/// An overlay volume shows its upper directory over its host path by the
+/// same rules (PodUtils/podvm#689): the working directory and a rule in it
+/// read the merged view; the root of the image shows nothing of it.
+#[test]
+fn an_overlay_volume_shows_its_upper_layer_over_its_host_path() {
+    let Some(l) = layers("overlay-volume") else { return };
+    let image = l.dir.join("image");
+    std::fs::create_dir_all(&image).unwrap();
+    let root = RootDir::open(text(&image)).unwrap();
+    let (lower, upper) = (l.dir.join("lower"), l.dir.join("upper"));
+    let layers = crate::OverlayLayers { upper: text(&upper).to_string(), work: text(&l.dir).to_string() };
+    let volume = VolumeBind {
+        host: text(&lower).to_string(),
+        guest: "/v".to_string(),
+        overlay: Some(layers),
+        ..VolumeBind::default()
+    };
+    let mut p = plan(vec![volume]);
+    let v = View::new(&root, &p, Some(UpperDir { path: None, userxattr: true }));
+    assert_eq!(resolve_dir_in(&v, "/v"), Ok(lower.clone()), "the root of the volume");
+    assert_eq!(resolve_dir_in(&v, "/v/only"), Ok(upper.join("only")), "a directory of the upper layer alone");
+    assert_eq!(resolve_in(&v, "/v/both/l"), Ok(lower.join("both/l")));
+    assert_eq!(resolve_in(&v, "/v/both/u"), Ok(upper.join("both/u")));
+    assert_eq!(resolve_in(&v, "/v/gone"), Err(ResolveKind::Absent), "a file that a whiteout removes");
+    assert_eq!(resolve_in(&v, "/v/ln/l"), Err(ResolveKind::Absent), "the link goes to /both of the image");
+    if l.opaque {
+        assert_eq!(resolve_in(&v, "/v/op/old"), Err(ResolveKind::Absent), "an entry under an opaque directory");
+    }
+    assert_eq!(resolve_dir_in(&v, "/only"), Err(ResolveKind::Absent), "the image has no upper layer");
+    p.working_dir = "/v/only".to_string();
+    let up = Some(UpperDir { path: None, userxattr: true });
+    assert!(crate::ns_volume::check_workdir(&root, &p, up).is_ok());
+    p.working_dir = "/v/gonedir".to_string();
+    let e = crate::ns_volume::check_workdir(&root, &p, up).unwrap_err().to_string();
+    assert!(e.contains("\"/v/gonedir\"") && e.contains(&format!("{}:/v", text(&lower))), "{e}");
 }

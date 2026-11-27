@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/ns_tmpfs.rs
++++ b/crates/pod-enter/src/ns_tmpfs.rs
+@@ -68,7 +68,7 @@
+ pub fn tmpfs_options(bytes: u64, mode: Option<u32>) -> String {
+     match mode {
+         None => format!("size={bytes}"),
+-        Some(m) => format!("size={bytes},mode={m:o}"),
++        Some(_) => format!("size={bytes}"),
+     }
+ }
+ 

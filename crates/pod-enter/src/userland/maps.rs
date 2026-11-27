@@ -174,6 +174,13 @@ impl Maps {
     pub(crate) fn in_volume(&self, parts: &[String]) -> bool {
         self.pick(parts).is_some()
     }
+
+    /// The volume that serves the resolved guest path `parts`: its index
+    /// in [`Maps::volumes`] and the count of the components of its guest
+    /// side.
+    pub(crate) fn volume_of(&self, parts: &[String]) -> Option<(usize, usize)> {
+        self.pick(parts).map(|i| (i, self.parts[i].len()))
+    }
 }
 
 impl GuestRoot for Maps {

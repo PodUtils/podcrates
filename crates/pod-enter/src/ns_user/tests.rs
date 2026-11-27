@@ -170,6 +170,7 @@ fn the_payload_of_uid_0_of_the_rung_takes_the_lock() {
         optional: Vec::new(),
         overlay: None,
         devices: None,
+        caller_userns: false,
     };
     let own = NsEntry::Own(&mount);
     let lock = nested_for(&plan(None), Some(&own), false).unwrap().expect("the lock of uid 0");

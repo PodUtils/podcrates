@@ -63,11 +63,12 @@ pub fn plan(t: &Tree, ops: &[String], pid: bool, read_only_root: bool) -> Plan {
         guest: guest.to_string(),
         read_only,
         host_base: None,
+        overlay: None,
     };
     let bytes = NonZeroU64::new(1 << 20).unwrap();
     Plan {
         volumes: vec![volume(&t.ro, "/ro", true), volume(&t.rw, "/rw", false)],
-        tmpfs: vec![TmpfsMount { guest: "/t".to_string(), bytes }],
+        tmpfs: vec![TmpfsMount { guest: "/t".to_string(), bytes, mode: None }],
         ..bare(ops, pid, read_only_root)
     }
 }

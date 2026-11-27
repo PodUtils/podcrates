@@ -98,8 +98,9 @@ impl RootMount {
     }
 
     /// In the child, after the optional mounts: the masks of `/proc`, and
-    /// the devices of the tmpfs of `/dev` where no user namespace of the
-    /// rung binds them (`user`: one does). Async-signal-safe.
+    /// the devices of the tmpfs of `/dev` where `ns_optional` does not bind
+    /// them (`user`: a user namespace owns the mount namespace, and
+    /// `ns_optional` binds them). Async-signal-safe.
     pub(crate) fn after_optional(&self, user: bool) -> std::result::Result<(), (u8, Errno, u8)> {
         self.mask.apply()?;
         if let Some(dev) = self.dev.as_ref().filter(|_| !user) {

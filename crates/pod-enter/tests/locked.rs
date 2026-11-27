@@ -13,6 +13,9 @@
 //! A payload of uid 0 cannot write `/proc/sys`; a join is not dumpable
 //! until its exec; the image does not choose the chroot rung, and a payload
 //! of uid 0 refuses it; host root raises a hard limit (T-1635 to T-1641).
+//! An overlay volume keeps its lower layer and is locked, and a user
+//! namespace of the mounts gets the devices of the host (`locked/layer.rs`,
+//! PodUtils/podvm#689).
 //!
 //! Each case runs with and with no PID namespace, on each path: as root
 //! (host root), as a user with no capabilities (uid 65534 where the test
@@ -36,6 +39,9 @@ mod image;
 #[cfg(target_os = "linux")]
 #[path = "locked/join_dump.rs"]
 mod join_dump;
+#[cfg(target_os = "linux")]
+#[path = "locked/layer.rs"]
+mod layer;
 #[cfg(target_os = "linux")]
 #[path = "locked/more.rs"]
 mod more;

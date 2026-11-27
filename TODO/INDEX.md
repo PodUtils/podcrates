@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1113 entries: 174 open, 31 partial, 6 blocked, 902 done.**
+**1117 entries: 174 open, 31 partial, 6 blocked, 906 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 258 | 271 |
-| P2 | 73 | 12 | 4 | 482 | 571 |
+| P1 | 4 | 9 | 0 | 260 | 273 |
+| P2 | 73 | 12 | 4 | 484 | 573 |
 | P3 | 97 | 10 | 2 | 160 | 269 |
-| **All** | 174 | 31 | 6 | 902 | 1113 |
+| **All** | 174 | 31 | 6 | 906 | 1117 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1153,6 +1153,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1583](podvm.md) | P2 | S | M6 | feature | done | `pod-extract`: no reader of the extended attributes of a path, so podvm keeps its own with a bound of 4096 bytes (PodUtils/podvm#683) |
 | [T-1600](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`, `pod-relay`: two tests take the error codes and the words of Linux, and fail on Windows and macOS |
 | [T-1601](relay.md) | P2 | S | M2 | defect | done | `pod-session`: `a_cap_of_1_mib_takes_a_smaller_window` fails on a target of 32 bits: `after_mark(usize::MAX)` does not saturate there |
+| [T-1610](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: the walk in a root refuses a `..` at the root, so podvm's `cp` cannot resolve a path as docker does (PodUtils/podvm#684) |
+| [T-1611](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: `TmpfsMount` has no mode, so podvm refuses `--tmpfs P:mode=M,size=N` (PodUtils/podvm#692, ask 2) |
+| [T-1612](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: no overlay kind of volume in `Plan::volumes`, so podvm mounts `-v HOST:GUEST:overlay` in a namespace step of its own (PodUtils/podvm#689) |
+| [T-1613](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the namespace rung of a caller in a user namespace binds no device of the host, so the image keeps regular files at `/dev/null` (PodUtils/podvm#689, PodUtils/podvm@T-2107) |
 | [T-1635](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a join holds the descriptors of the caller and stays dumpable in the user namespace of the payload, so a payload of uid 0 opens the host's root through `/proc/PID/fd` |
 | [T-1636](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a payload of kuid 0 under the lock writes `/proc/sys` and `/proc/sysrq-trigger` of the host |
 | [T-1637](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the fallback of the namespace rung to chroot runs a payload of uid 0 with no pivot and no lock, and the image chooses it with no `/tmp` |

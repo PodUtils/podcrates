@@ -99,8 +99,11 @@ The entries:
   and never a fallback to chroot as 0. A host root (the initial
   namespace), a join of a run (the map of the run holds) and the entry
   with no chroot keep the ids of the caller (T-791).
-* The device nodes of the host on the namespace rung through a user
-  namespace (`ns_dev_bind`, PodUtils/podvm#414). The kernel refuses
+* The device nodes of the host on the namespace rung where a user
+  namespace owns the mount namespace (`ns_dev_bind`, PodUtils/podvm#414):
+  the user namespace of the rung, or one of the caller (podvm's launcher
+  and foreground run, PodUtils/podvm#689, call C1004; there the new devpts
+  instance and the bind of the host's `/proc` apply too). The kernel refuses
   `mknod` there, so the image holds regular files at the paths of
   `DEVICES` (a `/dev/urandom` that ends after 1 MiB). Before the fork,
   the entry reads the kind of `/dev/null`, `/dev/zero`, `/dev/full`,
@@ -141,7 +144,8 @@ The entries:
   takes one line and no bind. The rung as root keeps the bind of the
   host's `/dev/pts`.
 * The volumes of a plan on the namespace rung (`Plan::volumes`, a
-  `Vec<VolumeBind { host, guest, read_only }>`, PodUtils/podvm#440), as
+  `Vec<VolumeBind { host, guest, read_only, host_base, overlay }>`,
+  PodUtils/podvm#440), as
   root and through a user namespace, in their order. Before the banner
   and the fork, the entry refuses by name a guest path that is not an
   absolute normal path (`volume_guest_parts`: no `.`, `..` or empty
@@ -179,11 +183,33 @@ The entries:
   resolves in the host side of the volume before the fork
   (`userland::Maps::of_binds`, which a caller gives to `check_workdir`),
   and so does the path of each rule of the confinement.
+* An overlay volume (`VolumeBind::overlay: Some(OverlayLayers { upper,
+  work })`, `-v HOST:GUEST:overlay`, PodUtils/podvm#689, call C1003): at
+  the place of the bind, an overlayfs mount on the guest path whose
+  read-only lower layer is the directory HOST (opened under `host_base`
+  with `pod-beneath` where it is set), with the upper and the work
+  directory that the caller made. The child does `fchdir` to the lower
+  descriptor and mounts with `overlay_options` (`lowerdir=.`), and with
+  `userxattr` where a user namespace owns the mount namespace, with no
+  second try. Before the fork the entry refuses by name a `read_only`
+  overlay, a host path that is not a directory, an upper or a work
+  directory that is not an absolute path of a directory, and options over
+  one page. Steps: `NS_LAYER_LOWER_STEP` 61 (the open of the lower layer,
+  or step 48 under its base), `NS_LAYER_MOUNT_STEP` 62, and
+  `NS_LAYER_OVERLAP_STEP` 63 for `ELOOP` and `EBUSY` (layers that overlap or
+  are in use, `Class::Usage`). The label is `HOST:GUEST:overlay`. The
+  mount comes before the nested user namespace of the payload, so it is
+  locked as each other mount. The checks before the fork (the working
+  directory, the rules of the confinement) read the upper directory over
+  the host path (`ns_upper`).
 * The tmpfs mounts of a plan with a byte limit on the namespace rung
-  (`Plan::tmpfs`, a `Vec<TmpfsMount { guest, bytes }>`, `bytes` a
-  `NonZeroU64`; podvm's `--tmpfs PATH:size=N`, PodUtils/podvm#667), as
+  (`Plan::tmpfs`, a `Vec<TmpfsMount { guest, bytes, mode }>`, `bytes` a
+  `NonZeroU64`; podvm's `--tmpfs PATH:size=N`, PodUtils/podvm#667; `mode`
+  the mode of its root, at most `TMPFS_MODE_MOST` `0o7777`,
+  PodUtils/podvm#692), as
   root and through a user namespace, in their order. Before the banner
-  and the fork, the entry refuses by name (`tmpfs_label`, `GUEST:size=N`)
+  and the fork, the entry refuses by name (`tmpfs_label`, `GUEST:size=N`,
+  or `GUEST:mode=M,size=N`) a mode over `0o7777`,
   a guest path that is not an absolute normal path or is `/`, a guest
   path that two mounts give, a guest path at or under the guest path of a
   volume (the volume binds after the tmpfs mounts), and more than
@@ -192,7 +218,8 @@ The entries:
   (mode 0755; a symbolic link of the image is `NS_TMPFS_LINK_STEP` 50,
   `Class::Policy`; another refused open or make is `NS_TMPFS_POINT_STEP`
   49). Then `mount("tmpfs", /proc/self/fd/N, "tmpfs", MS_NOSUID |
-  MS_NODEV, "size=N")` (`NS_TMPFS_MOUNT_STEP` 51). A new walk crosses
+  MS_NODEV, "size=N[,mode=M]")` (`tmpfs_options`; `NS_TMPFS_MOUNT_STEP`
+  51). A new walk crosses
   into the mount and `fstatfs` reads it back (`tmpfs_enforced`): a file
   system that is not a tmpfs, or a size that is not `N` rounded up to
   whole blocks, stops the payload at `NS_TMPFS_LIMIT_STEP` 52 ("the kernel
@@ -517,7 +544,7 @@ each entry takes; the payload owns the standard output.
 | `uts` | `NS_UTS_STEP`, `NS_HOSTNAME_STEP` (the steps of `unshare(CLONE_NEWUTS)` and `sethostname` in `ns_setup_step`), `MOST` (64 bytes): the host name of the payload on the namespace rung (PodUtils/podvm#403) |
 | `userland` | `Family`, `LoaderPlan` (`inhibit_cache`: the loader is glibc 2.16 or later, so a caller can give `--inhibit-cache`), `lib_dirs` (the loader's directory, the standard ones with `/usr/local/lib`, then the image's `/etc/ld.so.conf` or `/etc/ld-musl-ARCH.path`; each resolved inside the image), `lib_dirs_for(root, interp, program)` (the `DT_RUNPATH` (else `DT_RPATH`) directories of the program and of each library that it loads, in the order of the loader, then `lib_dirs`: the loader runs by host path, so it reads an absolute directory of a `RUNPATH` on the host, and the library path names the one of the image), `runpath` (`runpath_dirs`, the guest directories, each resolved inside the image, one that leaves it not added; `Tokens`: `$ORIGIN` for both C libraries, and for glibc `$LIB` from the directory of its C library (`lib/TRIPLET` for a multiarch directory, else its last component) and `$PLATFORM` (`glibc_platform`: `haswell` on an Intel x86-64 CPU of that class with glibc 2.26 or later, else `at_platform`, the `AT_PLATFORM` of the kernel); the bounds `MOST_OBJECTS`, `MOST_DIRS`), `takes_inhibit_cache`, `ldconf` (`configured_dirs`, the bounds `MOST_FILES`, `MOST_DEPTH`, `MOST_DIRS`, `MOST_BYTES`), `invocation_path`, `loader_argv_for`, `loader_plan` (the three take a `GuestRoot`; the library directories of `loader_plan` are those of `lib_dirs_for` for the payload), `host_env(&names, ..)`; `Volume { guest, host }`, `Maps` (`of_root(rootfs)`, `of_binds(rootfs, &binds)` (the table of the `VolumeBind`s of the namespace rung, with no rule of the interposer), `new(&names, rootfs, &volumes)` with the refusals of more than `MAX_MAP_PAIRS - 1` volumes (by the name of `names.maps`), of a guest side that is not absolute, is `/`, is not a normal path, repeats one, or is a reserved path of `names` or is under one (by name), and of a host side that is not absolute; `rootfs`, `volumes`, `volume_at`), `userland_maps_table(&names, &maps)` (the root pair, then each volume pair), `userland_volume_table(&names, &maps)` (the volume pairs only), `MAX_MAP_SIDE` (4096 bytes), `MAX_MAP_PAIRS` (32): each side that the variable cannot spell is refused with its own name (the rootfs path, the guest side or the host side of the volume) |
 | `binfmt` | `support_for`, `Support`, `copy_in_target`, `copy_interpreter_in`, and the reader of `pod_hostprobe::binfmt` |
-| `abi` | `Elf` (`read`, `parse`, `flavour`), `Flavour`, `Versioned`, `Unreadable`, `Verdict`, `admits`, `admits_set`, `interp_of` (head-safe), `interp_of_file`, `HEAD_BYTES`, `READ_CEILING`, `PHDR_TABLE_MAX`, `libc_beside`, `resolve_in`, `resolve_dir_in` (each takes a `GuestRoot`), `Search` (`read`, `parse`: `DT_NEEDED`, `DT_RUNPATH`, `DT_RPATH` and the machine of a file, with no read of its symbols; `dirs`, the list that the loader searches), `GuestRoot` (`root`, `host_of`, `above_mount`, `guest_of` (a host path back to its guest path); for `Path`, `PathBuf`, `str`, `String` and `userland::Maps`), `ResolveKind`, `link_set`, `LinkSet`, `Member`, `guest_lib_dirs` |
+| `abi` | `Elf` (`read`, `parse`, `flavour`), `Flavour`, `Versioned`, `Unreadable`, `Verdict`, `admits`, `admits_set`, `interp_of` (head-safe), `interp_of_file`, `HEAD_BYTES`, `READ_CEILING`, `PHDR_TABLE_MAX`, `libc_beside`, `resolve_in`, `resolve_dir_in` (each takes a `GuestRoot`; a `..` above the root is `ResolveKind::Escapes`), `resolve_in_clamped`, `resolve_dir_in_clamped` (a `..` at the root and a link above it stay at the root, as `openat2(RESOLVE_IN_ROOT)` and `docker cp`, `AtRoot`, PodUtils/podvm#684), `Search` (`read`, `parse`: `DT_NEEDED`, `DT_RUNPATH`, `DT_RPATH` and the machine of a file, with no read of its symbols; `dirs`, the list that the loader searches), `GuestRoot` (`root`, `host_of`, `above_mount`, `guest_of` (a host path back to its guest path); for `Path`, `PathBuf`, `str`, `String` and `userland::Maps`), `ResolveKind`, `link_set`, `LinkSet`, `Member`, `guest_lib_dirs` |
 
 A failure of the entry is `Error::Runtime` with a `pod_core::Failure` at
 `Stage::Host`. Its class follows the errno where a system call refused
